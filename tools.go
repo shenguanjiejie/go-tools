@@ -128,30 +128,30 @@ func WaitHandle(channel chan interface{}, goCount int, waitingFor func(), asyncH
 	waitGroup.Wait()
 }
 
-// LoadJSON 加载json文件
-func LoadJSON(path string) []byte {
-	jsonFile, err := os.Open(path)
+// LoadFile 加载文件
+func LoadFile(path string) []byte {
+	file, err := os.Open(path)
 	defer func() {
-		err = jsonFile.Close()
+		err = file.Close()
 		if err != nil {
-			Slogln("read json err:", err)
+			Slogln("read err:", err)
 		}
 	}()
 	if err != nil {
 		Slogln(err)
 	}
-	byteValue, _ := ioutil.ReadAll(jsonFile)
+	byteValue, _ := ioutil.ReadAll(file)
 	return byteValue
 }
 
-// SaveJSON 生成json文件
-func SaveJSON(path string, data []byte) {
-	jsonFile, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0755)
+// SaveFile 生成文件
+func SaveFile(path string, data []byte) {
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
 		Slogln(err)
 	}
-	defer jsonFile.Close()
-	_, err = jsonFile.Write(data)
+	defer file.Close()
+	_, err = file.Write(data)
 	if err != nil {
 		Slogln(err)
 	}
