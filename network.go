@@ -15,7 +15,7 @@ import (
 
 func HttpGet(urlStr string, values url.Values, header ...http.Header) ([]byte, error) {
 	url := fmt.Sprintf("%s?%s", urlStr, values.Encode())
-	Slogln(url)
+	// Slogln(url)
 	request, _ := http.NewRequest("GET", url, nil)
 	if len(header) > 0 {
 		request.Header = header[0]
@@ -35,7 +35,7 @@ func HttpGet(urlStr string, values url.Values, header ...http.Header) ([]byte, e
 
 // RJ 2022-03-29 16:22:04 post请求
 func HttpPost(url string, dataMap map[string]string) ([]byte, error) {
-	Slogln(url)
+	// Slogln(url)
 	jsonParams, err := json.Marshal(dataMap)
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func HttpPost(url string, dataMap map[string]string) ([]byte, error) {
 
 // RJ 2022-03-29 16:22:04 formdata请求
 func HttpFormDataPost(url string, dataMap map[string]string) ([]byte, error) {
-	Slogln(url)
+	// Slogln(url)
 	cmdResReqForm, contentType := createMultipartFormBody(dataMap)
 	var err error
 	if cmdResReqForm == nil {
