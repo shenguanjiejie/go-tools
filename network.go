@@ -28,9 +28,10 @@ const (
 )
 
 type HttpConfig struct {
-	Header  http.Header
-	Log     LogLevel
-	Timeout time.Duration
+	Header      http.Header
+	Log         LogLevel
+	Timeout     time.Duration
+	ContentType string // post only
 }
 
 func HttpGet(urlStr string, values url.Values, config ...*HttpConfig) ([]byte, error) {
@@ -63,8 +64,12 @@ func HttpGet(urlStr string, values url.Values, config ...*HttpConfig) ([]byte, e
 // RJ 2022-03-29 16:22:04 post请求
 func HttpPost(url string, dataMap map[string]string, config ...*HttpConfig) ([]byte, error) {
 	shouldLogError := Condition(false)
+	contentType := "application/json"
 	if len(config) > 0 {
 		shouldLogError = Condition(config[0].Log&LogError != 0)
+		if config[0].ContentType != "" {
+			contentType = config[0].ContentType
+		}
 	} else {
 		config = defaultConfig
 	}
@@ -80,7 +85,7 @@ func HttpPost(url string, dataMap map[string]string, config ...*HttpConfig) ([]b
 	}
 	client, responseHandle := prepare(url, dataMap, request, config)
 	request.Close = true
-	request.Header.Add("Content-Type", "application/json")
+	request.Header.Add("Content-Type", contentType)
 	resp, err := client.Do(request)
 	if err != nil {
 		Slogln(shouldLogError, err)
