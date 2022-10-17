@@ -32,7 +32,7 @@ func TimeCost(signs ...string) func() {
 }
 
 // WaitHandle 阻塞型协程队列, 所有参数必传才执行
-func WaitHandle(channel chan any, goCount int, waitingFor func(), asyncHandle func(channelObj any)) {
+func WaitHandle(channel chan interface{}, goCount int, waitingFor func(), asyncHandle func(channelObj interface{})) {
 	if channel == nil || asyncHandle == nil || waitingFor == nil {
 		return
 	}

@@ -160,7 +160,7 @@ func createMultipartFormBody(params map[string]string) (*bytes.Buffer, string) {
 	return body, w.FormDataContentType()
 }
 
-func prepare(url string, params any, request *http.Request, config []*HttpConfig) (*http.Client, func(response *http.Response) ([]byte, error)) {
+func prepare(url string, params interface{}, request *http.Request, config []*HttpConfig) (*http.Client, func(response *http.Response) ([]byte, error)) {
 	var conf *HttpConfig
 	client := http.DefaultClient
 	if len(config) > 0 {

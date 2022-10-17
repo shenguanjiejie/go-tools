@@ -14,7 +14,7 @@ type Condition bool
 type CallerLevel int
 
 // Slog 带行号输出
-func Slog(a ...any) {
+func Slog(a ...interface{}) {
 	condition, newA, pc, codeLine, ok := logStackInfo(a...)
 
 	if !condition {
@@ -22,7 +22,7 @@ func Slog(a ...any) {
 	}
 
 	if !ok {
-		fmt.Print(a...)
+		fmt.Print(newA...)
 		return
 	}
 
@@ -31,7 +31,7 @@ func Slog(a ...any) {
 }
 
 // Slogln 带行号输出
-func Slogln(a ...any) {
+func Slogln(a ...interface{}) {
 	condition, newA, pc, codeLine, ok := logStackInfo(a...)
 
 	if !condition {
@@ -48,7 +48,7 @@ func Slogln(a ...any) {
 }
 
 // Slogf 带行号格式输出
-func Slogf(format string, a ...any) {
+func Slogf(format string, a ...interface{}) {
 	condition, newA, pc, codeLine, ok := logStackInfo(a...)
 
 	if !condition {
@@ -64,11 +64,11 @@ func Slogf(format string, a ...any) {
 	fmt.Printf(finalFormat, slice...)
 }
 
-func logStackInfo(a ...any) (condition bool, newA []any, pc uintptr, line int, ok bool) {
+func logStackInfo(a ...interface{}) (condition bool, newA []interface{}, pc uintptr, line int, ok bool) {
 	newA = a
 	currentLevel := 2
 
-	callerHandle := func(data any) uintptr {
+	callerHandle := func(data interface{}) uintptr {
 		// RJ 2022-10-17 10:41:05 获取对应CallerLevel的pc
 		if reflect.TypeOf(data).String() == "tools.CallerLevel" {
 			// RJ 2022-10-17 10:52:52 由于在闭包内, 所以需要再+1
@@ -111,9 +111,9 @@ func logStackInfo(a ...any) (condition bool, newA []any, pc uintptr, line int, o
 	return true, newA, pc, line, ok
 }
 
-func slogFormat(a ...any) string {
+func slogFormat(a ...interface{}) string {
 	formatStr := ""
-	dataArr, ok := a[0].([]any)
+	dataArr, ok := a[0].([]interface{})
 	if !ok {
 		formatStr += "%v, "
 	}
@@ -129,10 +129,10 @@ func slogFormat(a ...any) string {
 	return formatStr
 }
 
-func formatWithValues(pc uintptr, codeLine int, format string, a ...any) (string, []any) {
+func formatWithValues(pc uintptr, codeLine int, format string, a ...interface{}) (string, []interface{}) {
 	funName := runtime.FuncForPC(pc).Name()
 	timeStr := time.Now().Format("2006-01-02 15:04:05")
-	slice := []any{timeStr, funName, codeLine}
+	slice := []interface{}{timeStr, funName, codeLine}
 	slice = append(slice, a...)
 	return "%s--%s--第%d行--: " + format, slice
 }
