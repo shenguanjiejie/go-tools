@@ -10,8 +10,12 @@ import (
 // RJ 2022-10-14 15:55:01 条件打印, 如果要设置该条件, 需放在第一个参数位置
 type Condition bool
 
-// RJ 2022-10-14 15:23:01 输出的方法名的层级, 默认为0, 代表输出当前方法名, 如果要输出上层方法名, 则第一个参数设置为CallerLevel(1)即可, 以此类推.
+var conditionType = reflect.TypeOf(Condition(true))
+
+// RJ 2022-10-14 15:23:01 输出的方法名的层级, 默认为0, 代表输出当前方法名, 如果要输出上层方法名(比如闭包内打印), 则第一个参数设置为CallerLevel(1)即可, 以此类推.
 type CallerLevel int
+
+var callerLevelType = reflect.TypeOf(CallerLevel(0))
 
 // Slog 带行号输出
 func Slog(a ...interface{}) {
@@ -69,8 +73,12 @@ func logStackInfo(a ...interface{}) (condition bool, newA []interface{}, pc uint
 	currentLevel := 2
 
 	callerHandle := func(data interface{}) uintptr {
+		if data == nil {
+			return 0
+		}
+
 		// RJ 2022-10-17 10:41:05 获取对应CallerLevel的pc
-		if reflect.TypeOf(data).String() == "tools.CallerLevel" {
+		if reflect.TypeOf(data) == callerLevelType {
 			// RJ 2022-10-17 10:52:52 由于在闭包内, 所以需要再+1
 			callerInt := int(data.(CallerLevel)) + 1
 			newA = newA[1:]
@@ -86,7 +94,7 @@ func logStackInfo(a ...interface{}) (condition bool, newA []interface{}, pc uint
 	if len(a) > 0 && a[0] != nil {
 		data := a[0]
 
-		if reflect.TypeOf(data).String() == "tools.Condition" {
+		if reflect.TypeOf(data) == conditionType {
 			// RJ 2022-10-14 16:02:08 Condition是不是false, 如果是, 则无需打印
 			if !data.(Condition) {
 				return
@@ -94,7 +102,7 @@ func logStackInfo(a ...interface{}) (condition bool, newA []interface{}, pc uint
 
 			newA = a[1:]
 
-			if len(newA) > 0 && newA[0] != nil {
+			if len(newA) > 0 {
 				pc = callerHandle(newA[0])
 			}
 		} else {
