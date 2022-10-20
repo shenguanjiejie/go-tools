@@ -48,13 +48,13 @@ func HttpGet(urlStr string, values url.Values, config ...*HttpConfig) ([]byte, e
 
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		Slogln(shouldLogError, err)
+		Logln(shouldLogError, err)
 		return nil, err
 	}
 	client, responseHandle := prepare(url, values, request, config)
 	resp, err := client.Do(request)
 	if err != nil {
-		Slogln(shouldLogError, err)
+		Logln(shouldLogError, err)
 		return nil, err
 	}
 	respBytes, _ := responseHandle(resp)
@@ -75,12 +75,12 @@ func HttpPost(url string, dataMap map[string]string, config ...*HttpConfig) ([]b
 	}
 	jsonParams, err := json.Marshal(dataMap)
 	if err != nil {
-		Slogln(shouldLogError, err)
+		Logln(shouldLogError, err)
 		return nil, err
 	}
 	request, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonParams))
 	if err != nil {
-		Slogln(shouldLogError, err)
+		Logln(shouldLogError, err)
 		return nil, err
 	}
 	client, responseHandle := prepare(url, dataMap, request, config)
@@ -88,7 +88,7 @@ func HttpPost(url string, dataMap map[string]string, config ...*HttpConfig) ([]b
 	request.Header.Add("Content-Type", contentType)
 	resp, err := client.Do(request)
 	if err != nil {
-		Slogln(shouldLogError, err)
+		Logln(shouldLogError, err)
 		return nil, err
 	}
 	respBytes, _ := responseHandle(resp)
@@ -107,12 +107,12 @@ func HttpFormDataPost(url string, dataMap map[string]string, config ...*HttpConf
 	}
 	var err error
 	if cmdResReqForm == nil {
-		Slogln(shouldLogError, err)
+		Logln(shouldLogError, err)
 		return nil, err
 	}
 	request, err := http.NewRequest("POST", url, cmdResReqForm)
 	if err != nil {
-		Slogln(shouldLogError, err)
+		Logln(shouldLogError, err)
 		return nil, err
 	}
 	client, responseHandle := prepare(url, dataMap, request, config)
@@ -120,7 +120,7 @@ func HttpFormDataPost(url string, dataMap map[string]string, config ...*HttpConf
 	request.Header.Add("Content-Type", contentType)
 	resp, err := client.Do(request)
 	if err != nil {
-		Slogln(shouldLogError, err)
+		Logln(shouldLogError, err)
 		return nil, err
 	}
 	respBytes, _ := responseHandle(resp)
@@ -172,8 +172,8 @@ func prepare(url string, params interface{}, request *http.Request, config []*Ht
 		conf = config[0]
 	}
 
-	Slogln(Condition(conf.Log&LogURL != 0), request.Method, url)
-	Slogln(Condition(conf.Log&LogParams != 0), params)
+	Logln(Condition(conf.Log&LogURL != 0), request.Method, url)
+	Logln(Condition(conf.Log&LogParams != 0), params)
 
 	if len(config) > 0 {
 		httpConfig := config[0]
@@ -188,11 +188,11 @@ func prepare(url string, params interface{}, request *http.Request, config []*Ht
 	return client, func(response *http.Response) ([]byte, error) {
 		result, err := ioutil.ReadAll(response.Body)
 		if err != nil {
-			Slogln(Condition(conf.Log&LogError != 0), CallerLevel(1), err)
+			Logln(Condition(conf.Log&LogError != 0), CallerLevel(1), err)
 			return nil, err
 		}
 		if conf.Log&LogResponse != 0 {
-			Slogln(Condition(conf.Log&LogResponse != 0), CallerLevel(1), string(result))
+			Logln(Condition(conf.Log&LogResponse != 0), CallerLevel(1), string(result))
 		}
 		return result, nil
 	}

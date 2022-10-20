@@ -17,8 +17,8 @@ type CallerLevel int
 
 var callerLevelType = reflect.TypeOf(CallerLevel(0))
 
-// Slog 带行号输出
-func Slog(a ...interface{}) {
+// Log 带行号输出
+func Log(a ...interface{}) {
 	condition, newA, pc, codeLine, ok := logStackInfo(a...)
 
 	if !condition {
@@ -34,8 +34,8 @@ func Slog(a ...interface{}) {
 	fmt.Printf(format, slice...)
 }
 
-// Slogln 带行号输出
-func Slogln(a ...interface{}) {
+// Logln 带行号输出
+func Logln(a ...interface{}) {
 	condition, newA, pc, codeLine, ok := logStackInfo(a...)
 
 	if !condition {
@@ -51,8 +51,8 @@ func Slogln(a ...interface{}) {
 	fmt.Printf(format+"\n", slice...)
 }
 
-// Slogf 带行号格式输出
-func Slogf(format string, a ...interface{}) {
+// Logf 带行号格式输出
+func Logf(format string, a ...interface{}) {
 	condition, newA, pc, codeLine, ok := logStackInfo(a...)
 
 	if !condition {

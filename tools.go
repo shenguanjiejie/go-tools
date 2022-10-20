@@ -64,11 +64,11 @@ func LoadFile(path string) []byte {
 	defer func() {
 		err = file.Close()
 		if err != nil {
-			Slogln("read err:", err)
+			Logln("read err:", err)
 		}
 	}()
 	if err != nil {
-		Slogln(err)
+		Logln(err)
 	}
 	byteValue, _ := ioutil.ReadAll(file)
 	return byteValue
@@ -78,12 +78,12 @@ func LoadFile(path string) []byte {
 func SaveFile(path string, data []byte) {
 	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
-		Slogln(err)
+		Logln(err)
 	}
 	defer file.Close()
 	_, err = file.Write(data)
 	if err != nil {
-		Slogln(err)
+		Logln(err)
 	}
 }
 
