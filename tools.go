@@ -27,7 +27,7 @@ func TimeCost(signs ...string) func() {
 	start := time.Now()
 	return func() {
 		tc := time.Since(start)
-		slogFormat("%v time cost = %v\n", signs, tc)
+		Logln(CallerLevel(1), "%v time cost = %v\n", signs, tc)
 	}
 }
 
@@ -87,9 +87,21 @@ func SaveFile(path string, data []byte) {
 	}
 }
 
+// MD5 md5
 func MD5(v string) string {
 	d := []byte(v)
 	m := md5.New()
 	m.Write(d)
 	return hex.EncodeToString(m.Sum(nil))
+}
+
+// InternetCheck 网络检测
+func InternetCheck() bool {
+	_, err := HttpGet("http://connect.rom.miui.com/generate_204", nil)
+	if err != nil {
+		Logln(err)
+		return false
+	}
+
+	return true
 }

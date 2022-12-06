@@ -12,7 +12,7 @@ type Condition bool
 
 var conditionType = reflect.TypeOf(Condition(true))
 
-// RJ 2022-10-14 15:23:01 输出的方法名的层级, 默认为0, 代表输出当前方法名, 如果要输出上层方法名(比如闭包内打印), 则第一个参数设置为CallerLevel(1)即可, 以此类推.
+// RJ 2022-10-14 15:23:01 输出的方法名的层级, 默认为0, 代表输出当前方法名, 如果要输出上层方法名(比如闭包内打印), 则该参数设置为CallerLevel(1)即可, 以此类推.
 type CallerLevel int
 
 var callerLevelType = reflect.TypeOf(CallerLevel(0))
