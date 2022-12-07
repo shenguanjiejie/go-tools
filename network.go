@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"time"
 )
 
@@ -23,8 +24,11 @@ const (
 	LogURL
 	LogParams
 	LogResponse
+	//  LogObj 打印反序列化后的obj
+	LogObj
 	LogError
-	LogAll = LogURL | LogParams | LogResponse | LogError
+	LogAllWithoutObj = LogURL | LogParams | LogResponse | LogError
+	LogAll           = LogAllWithoutObj | LogObj
 )
 
 type HttpConfig struct {
@@ -34,7 +38,7 @@ type HttpConfig struct {
 	ContentType string // post only
 }
 
-func HttpGet(urlStr string, values url.Values, config ...*HttpConfig) ([]byte, error) {
+func HttpGet(urlStr string, values url.Values, obj interface{}, config ...*HttpConfig) error {
 	url := urlStr
 	shouldLogError := Condition(false)
 	if len(config) > 0 {
@@ -49,20 +53,20 @@ func HttpGet(urlStr string, values url.Values, config ...*HttpConfig) ([]byte, e
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		Logln(shouldLogError, err)
-		return nil, err
+		return err
 	}
 	client, responseHandle := prepare(url, values, request, config)
 	resp, err := client.Do(request)
 	if err != nil {
 		Logln(shouldLogError, err)
-		return nil, err
+		return err
 	}
-	respBytes, _ := responseHandle(resp)
-	return respBytes, nil
+	responseHandle(obj, resp)
+	return nil
 }
 
 // RJ 2022-03-29 16:22:04 post请求
-func HttpPost(url string, dataMap map[string]string, config ...*HttpConfig) ([]byte, error) {
+func HttpPost(url string, dataMap map[string]string, obj interface{}, config ...*HttpConfig) error {
 	shouldLogError := Condition(false)
 	contentType := "application/json"
 	if len(config) > 0 {
@@ -76,12 +80,12 @@ func HttpPost(url string, dataMap map[string]string, config ...*HttpConfig) ([]b
 	jsonParams, err := json.Marshal(dataMap)
 	if err != nil {
 		Logln(shouldLogError, err)
-		return nil, err
+		return err
 	}
 	request, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonParams))
 	if err != nil {
 		Logln(shouldLogError, err)
-		return nil, err
+		return err
 	}
 	client, responseHandle := prepare(url, dataMap, request, config)
 	request.Close = true
@@ -89,15 +93,15 @@ func HttpPost(url string, dataMap map[string]string, config ...*HttpConfig) ([]b
 	resp, err := client.Do(request)
 	if err != nil {
 		Logln(shouldLogError, err)
-		return nil, err
+		return err
 	}
-	respBytes, _ := responseHandle(resp)
+	responseHandle(obj, resp)
 
-	return respBytes, nil
+	return nil
 }
 
 // RJ 2022-03-29 16:22:04 formdata请求
-func HttpFormDataPost(url string, dataMap map[string]string, config ...*HttpConfig) ([]byte, error) {
+func HttpFormDataPost(url string, dataMap map[string]string, obj interface{}, config ...*HttpConfig) error {
 	cmdResReqForm, contentType := createMultipartFormBody(dataMap)
 	shouldLogError := Condition(false)
 	if len(config) > 0 {
@@ -108,12 +112,12 @@ func HttpFormDataPost(url string, dataMap map[string]string, config ...*HttpConf
 	var err error
 	if cmdResReqForm == nil {
 		Logln(shouldLogError, err)
-		return nil, err
+		return err
 	}
 	request, err := http.NewRequest("POST", url, cmdResReqForm)
 	if err != nil {
 		Logln(shouldLogError, err)
-		return nil, err
+		return err
 	}
 	client, responseHandle := prepare(url, dataMap, request, config)
 	request.Close = true
@@ -121,10 +125,10 @@ func HttpFormDataPost(url string, dataMap map[string]string, config ...*HttpConf
 	resp, err := client.Do(request)
 	if err != nil {
 		Logln(shouldLogError, err)
-		return nil, err
+		return err
 	}
-	respBytes, _ := responseHandle(resp)
-	return respBytes, nil
+	responseHandle(obj, resp)
+	return nil
 }
 
 func createMultipartFormBody(params map[string]string) (*bytes.Buffer, string) {
@@ -165,7 +169,7 @@ func createMultipartFormBody(params map[string]string) (*bytes.Buffer, string) {
 	return body, w.FormDataContentType()
 }
 
-func prepare(url string, params interface{}, request *http.Request, config []*HttpConfig) (*http.Client, func(response *http.Response) ([]byte, error)) {
+func prepare(url string, params interface{}, request *http.Request, config []*HttpConfig) (*http.Client, func(obj interface{}, response *http.Response) error) {
 	var conf *HttpConfig
 	client := http.DefaultClient
 	if len(config) > 0 {
@@ -185,15 +189,27 @@ func prepare(url string, params interface{}, request *http.Request, config []*Ht
 		}
 	}
 
-	return client, func(response *http.Response) ([]byte, error) {
+	return client, func(obj interface{}, response *http.Response) error {
+		if obj != nil && reflect.TypeOf(obj) == reflect.TypeOf(response) {
+			*(obj.(*http.Response)) = *response
+			Logln(Condition(conf.Log&LogResponse != 0), CallerLevel(1), obj)
+			return nil
+		}
 		result, err := ioutil.ReadAll(response.Body)
 		if err != nil {
 			Logln(Condition(conf.Log&LogError != 0), CallerLevel(1), err)
-			return nil, err
+			return err
 		}
-		if conf.Log&LogResponse != 0 {
-			Logln(Condition(conf.Log&LogResponse != 0), CallerLevel(1), string(result))
+		if obj != nil {
+			err = json.Unmarshal(result, &obj)
+			if err != nil {
+				Logln(Condition(conf.Log&LogError != 0), CallerLevel(1), err)
+				return err
+			}
+			Logln(Condition(conf.Log&LogObj != 0), CallerLevel(1), obj)
 		}
-		return result, nil
+		Logln(Condition(conf.Log&LogResponse != 0), CallerLevel(1), string(result))
+
+		return nil
 	}
 }

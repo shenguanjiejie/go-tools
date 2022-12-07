@@ -83,7 +83,7 @@ CVS
 *.swp
 *~
 ~
-# MCV's FaceSDK 
+# MCV's FaceSDK
 *.tgz
 mcv_facesdk/
 mcv_facesdk_ios/
@@ -128,3 +128,5 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+__debug_bin

@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"sync"
 	"time"
@@ -95,13 +96,25 @@ func MD5(v string) string {
 	return hex.EncodeToString(m.Sum(nil))
 }
 
-// InternetCheck 网络检测
-func InternetCheck() bool {
-	_, err := HttpGet("http://connect.rom.miui.com/generate_204", nil)
-	if err != nil {
-		Logln(err)
+var isOnline = true
+
+// InternetCheck 网络检测是否在线
+func InternetCheck(logLevel LogLevel, switchAction ...func(online bool)) bool {
+	res := new(http.Response)
+	err := HttpGet("http://connect.rom.miui.com/generate_204", nil, res, &HttpConfig{Log: logLevel})
+
+	if err != nil || res.StatusCode != 204 {
+		Logln(Condition(err != nil), err)
+		if isOnline && len(switchAction) > 0 {
+			isOnline = false
+			switchAction[0](false)
+		}
 		return false
 	}
 
+	if !isOnline && len(switchAction) > 0 {
+		isOnline = true
+		switchAction[0](true)
+	}
 	return true
 }

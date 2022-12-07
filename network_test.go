@@ -12,31 +12,41 @@ import (
 	"testing"
 )
 
+type User struct {
+	ID     int    `json:"id" bson:"id"`
+	UserID int    `json:"user_id" bson:"user_id"`
+	Title  string `json:"title" bson:"title"`
+	Body   string `json:"body" bson:"body"`
+}
+
 func TestHttpGet(t *testing.T) {
-	HttpGet("https://jsonplaceholder.typicode.com/posts/1", nil, &HttpConfig{Log: LogNone})
-	HttpGet("https://jsonplaceholder.typicode.com/posts/1", nil, &HttpConfig{Log: LogURL})
-	HttpGet("https://jsonplaceholder.typicode.com/posts/1", nil, &HttpConfig{Log: LogURL | LogParams})
-	HttpGet("https://jsonplaceholder.typicode.com/posts/1", nil, &HttpConfig{Log: LogAll})
+	user := new(User)
+	HttpGet("https://jsonplaceholder.typicode.com/posts/1", nil, nil, &HttpConfig{Log: LogNone})
+	HttpGet("https://jsonplaceholder.typicode.com/posts/1", nil, nil, &HttpConfig{Log: LogURL})
+	HttpGet("https://jsonplaceholder.typicode.com/posts/1", nil, nil, &HttpConfig{Log: LogURL | LogParams})
+	HttpGet("https://jsonplaceholder.typicode.com/posts/1", nil, nil, &HttpConfig{Log: LogAll})
+	HttpGet("https://jsonplaceholder.typicode.com/posts/1", nil, user, &HttpConfig{Log: LogAll})
 }
 
 func TestHttpPost(t *testing.T) {
 
+	user := new(User)
 	params := map[string]string{
 		"userId": "1",
 		"id":     "101",
 		"title":  "title test",
 		"body":   "body test",
 	}
-	HttpPost("https://jsonplaceholder.typicode.com/posts", params, &HttpConfig{Log: LogAll})
+	HttpPost("https://jsonplaceholder.typicode.com/posts", params, user, &HttpConfig{Log: LogAll})
 }
 
 func TestHttpFormDataPost(t *testing.T) {
-
+	user := new(User)
 	params := map[string]string{
 		"userId": "1",
 		"id":     "101",
 		"title":  "title test",
 		"body":   "body test",
 	}
-	HttpFormDataPost("https://jsonplaceholder.typicode.com/posts", params, &HttpConfig{Log: LogAll})
+	HttpFormDataPost("https://jsonplaceholder.typicode.com/posts", params, user, &HttpConfig{Log: LogAll})
 }
