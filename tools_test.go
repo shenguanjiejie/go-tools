@@ -9,7 +9,7 @@ func TestInternet(t *testing.T) {
 
 	go func() {
 		for range time.Tick(time.Second * 2) {
-			pass := InternetCheck(LogResponse, func(online bool) {
+			pass := InternetCheck(LogURL, func(online bool) {
 				Logln("switchAction", online)
 			})
 			Logln(pass)

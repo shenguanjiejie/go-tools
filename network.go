@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-var defaultConfig = []*HttpConfig{{Log: LogAll}}
+var defaultConfig = &httpConfig{HttpConfig: HttpConfig{Log: LogAll}}
 
 type LogLevel int
 
@@ -31,6 +31,13 @@ const (
 	LogAll           = LogAllWithoutObj | LogObj
 )
 
+const (
+	HttpMethodGET    = "GET"
+	HttpMethodPOST   = "POST"
+	HttpMethodPUT    = "PUT"
+	HttpMethodDELETE = "DELETE"
+)
+
 type HttpConfig struct {
 	Header      http.Header
 	Log         LogLevel
@@ -38,96 +45,84 @@ type HttpConfig struct {
 	ContentType string // post only
 }
 
+type httpConfig struct {
+	HttpConfig
+	Method string
+	URL    string
+	Params interface{}
+	Body   io.Reader
+}
+
+/**HttpGet
+@param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
+*/
 func HttpGet(urlStr string, values url.Values, obj interface{}, config ...*HttpConfig) error {
 	url := urlStr
-	shouldLogError := Condition(false)
+	var iconfig *httpConfig
 	if len(config) > 0 {
-		shouldLogError = Condition(config[0].Log&LogError != 0)
+		iconfig = &httpConfig{HttpConfig: *config[0]}
 	} else {
-		config = defaultConfig
+		iconfig = defaultConfig
 	}
 	if values != nil {
 		url = fmt.Sprintf("%s?%s", urlStr, values.Encode())
 	}
 
-	request, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		Logln(shouldLogError, err)
-		return err
-	}
-	client, responseHandle := prepare(url, values, request, config)
-	resp, err := client.Do(request)
-	if err != nil {
-		Logln(shouldLogError, err)
-		return err
-	}
-	responseHandle(obj, resp)
-	return nil
+	iconfig.Method = HttpMethodPOST
+	iconfig.URL = url
+	iconfig.Params = values
+	err := request(obj, iconfig)
+	return err
 }
 
-// RJ 2022-03-29 16:22:04 post请求
+/**HttpPost
+@param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
+*/
 func HttpPost(url string, dataMap map[string]string, obj interface{}, config ...*HttpConfig) error {
+	var iconfig *httpConfig
 	shouldLogError := Condition(false)
-	contentType := "application/json"
 	if len(config) > 0 {
-		shouldLogError = Condition(config[0].Log&LogError != 0)
-		if config[0].ContentType != "" {
-			contentType = config[0].ContentType
-		}
+		iconfig = &httpConfig{HttpConfig: *config[0]}
+		shouldLogError = Condition(iconfig.Log&LogError != 0)
 	} else {
-		config = defaultConfig
+		iconfig = defaultConfig
 	}
 	jsonParams, err := json.Marshal(dataMap)
 	if err != nil {
-		Logln(shouldLogError, err)
+		Logln(shouldLogError,CallerLevel(1), err)
 		return err
 	}
-	request, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonParams))
-	if err != nil {
-		Logln(shouldLogError, err)
-		return err
-	}
-	client, responseHandle := prepare(url, dataMap, request, config)
-	request.Close = true
-	request.Header.Add("Content-Type", contentType)
-	resp, err := client.Do(request)
-	if err != nil {
-		Logln(shouldLogError, err)
-		return err
-	}
-	responseHandle(obj, resp)
 
-	return nil
+	iconfig.URL = url
+	iconfig.Method = HttpMethodPOST
+	iconfig.Body = bytes.NewBuffer(jsonParams)
+	iconfig.Params = dataMap
+	if iconfig.ContentType == "" {
+		iconfig.ContentType = "application/json"
+	}
+	err = request(obj, iconfig)
+
+	return err
 }
 
-// RJ 2022-03-29 16:22:04 formdata请求
+/**HttpFormDataPost
+@param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
+*/
 func HttpFormDataPost(url string, dataMap map[string]string, obj interface{}, config ...*HttpConfig) error {
 	cmdResReqForm, contentType := createMultipartFormBody(dataMap)
-	shouldLogError := Condition(false)
+	var iconfig *httpConfig
 	if len(config) > 0 {
-		shouldLogError = Condition(config[0].Log&LogError != 0)
+		iconfig = &httpConfig{HttpConfig: *config[0]}
 	} else {
-		config = defaultConfig
+		iconfig = defaultConfig
 	}
-	var err error
-	if cmdResReqForm == nil {
-		Logln(shouldLogError, err)
-		return err
-	}
-	request, err := http.NewRequest("POST", url, cmdResReqForm)
-	if err != nil {
-		Logln(shouldLogError, err)
-		return err
-	}
-	client, responseHandle := prepare(url, dataMap, request, config)
-	request.Close = true
-	request.Header.Add("Content-Type", contentType)
-	resp, err := client.Do(request)
-	if err != nil {
-		Logln(shouldLogError, err)
-		return err
-	}
-	responseHandle(obj, resp)
+
+	iconfig.URL = url
+	iconfig.Method = HttpMethodPOST
+	iconfig.Body = cmdResReqForm
+	iconfig.Params = dataMap
+	iconfig.ContentType = contentType
+	request(obj, iconfig)
 	return nil
 }
 
@@ -169,47 +164,55 @@ func createMultipartFormBody(params map[string]string) (*bytes.Buffer, string) {
 	return body, w.FormDataContentType()
 }
 
-func prepare(url string, params interface{}, request *http.Request, config []*HttpConfig) (*http.Client, func(obj interface{}, response *http.Response) error) {
-	var conf *HttpConfig
+func request(obj interface{}, config *httpConfig) error {
 	client := http.DefaultClient
-	if len(config) > 0 {
-		conf = config[0]
+	shouldLogError := Condition(config.Log&LogError != 0)
+	callerLevel := CallerLevel(2)
+	Logln(Condition(config.Log&LogURL != 0), callerLevel, config.Method, config.URL)
+	Logln(Condition(config.Log&LogParams != 0), callerLevel, config.Params)
+
+	request, err := http.NewRequest(config.Method, config.URL, config.Body)
+	if err != nil {
+		Logln(shouldLogError, err)
+		return err
 	}
 
-	Logln(Condition(conf.Log&LogURL != 0), request.Method, url)
-	Logln(Condition(conf.Log&LogParams != 0), params)
-
-	if len(config) > 0 {
-		httpConfig := config[0]
-		if httpConfig.Header != nil {
-			request.Header = config[0].Header
-		}
-		if httpConfig.Timeout > 0 {
-			client.Timeout = httpConfig.Timeout
-		}
+	if config.Method == HttpMethodPOST {
+		request.Close = true
+		request.Header.Add("Content-Type", config.ContentType)
+	}
+	if config.Header != nil {
+		request.Header = config.Header
+	}
+	if config.Timeout > 0 {
+		client.Timeout = config.Timeout
 	}
 
-	return client, func(obj interface{}, response *http.Response) error {
-		if obj != nil && reflect.TypeOf(obj) == reflect.TypeOf(response) {
-			*(obj.(*http.Response)) = *response
-			Logln(Condition(conf.Log&LogResponse != 0), CallerLevel(1), obj)
-			return nil
-		}
-		result, err := ioutil.ReadAll(response.Body)
-		if err != nil {
-			Logln(Condition(conf.Log&LogError != 0), CallerLevel(1), err)
-			return err
-		}
-		if obj != nil {
-			err = json.Unmarshal(result, &obj)
-			if err != nil {
-				Logln(Condition(conf.Log&LogError != 0), CallerLevel(1), err)
-				return err
-			}
-			Logln(Condition(conf.Log&LogObj != 0), CallerLevel(1), obj)
-		}
-		Logln(Condition(conf.Log&LogResponse != 0), CallerLevel(1), string(result))
+	response, err := client.Do(request)
+	if err != nil {
+		Logln(shouldLogError, callerLevel, err)
+		return err
+	}
 
+	if obj != nil && reflect.TypeOf(obj) == reflect.TypeOf(response) {
+		*(obj.(*http.Response)) = *response
+		Logln(Condition(config.Log&LogResponse != 0), callerLevel, obj)
 		return nil
 	}
+	result, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		Logln(shouldLogError, callerLevel, err)
+		return err
+	}
+	if obj != nil {
+		err = json.Unmarshal(result, &obj)
+		if err != nil {
+			Logln(shouldLogError, callerLevel, err)
+			return err
+		}
+		Logln(Condition(config.Log&LogObj != 0), callerLevel, obj)
+	}
+	Logln(Condition(config.Log&LogResponse != 0), callerLevel, string(result))
+
+	return nil
 }

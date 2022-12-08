@@ -99,7 +99,7 @@ func MD5(v string) string {
 var isOnline = true
 
 // InternetCheck 网络检测是否在线
-func InternetCheck(logLevel LogLevel, switchAction ...func(online bool)) bool {
+func InternetCheck(logLevel LogLevel, switchAction ...func(isOnline bool)) bool {
 	res := new(http.Response)
 	err := HttpGet("http://connect.rom.miui.com/generate_204", nil, res, &HttpConfig{Log: logLevel})
 
@@ -107,14 +107,14 @@ func InternetCheck(logLevel LogLevel, switchAction ...func(online bool)) bool {
 		Logln(Condition(err != nil), err)
 		if isOnline && len(switchAction) > 0 {
 			isOnline = false
-			switchAction[0](false)
+			go switchAction[0](false)
 		}
 		return false
 	}
 
 	if !isOnline && len(switchAction) > 0 {
 		isOnline = true
-		switchAction[0](true)
+		go switchAction[0](true)
 	}
 	return true
 }
