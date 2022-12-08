@@ -105,16 +105,20 @@ func InternetCheck(logLevel LogLevel, switchAction ...func(isOnline bool)) bool 
 
 	if err != nil || res.StatusCode != 204 {
 		Logln(Condition(err != nil), err)
-		if isOnline && len(switchAction) > 0 {
+		if isOnline {
 			isOnline = false
-			go switchAction[0](false)
+			if len(switchAction) > 0 {
+				go switchAction[0](false)
+			}
 		}
 		return false
 	}
 
-	if !isOnline && len(switchAction) > 0 {
+	if !isOnline {
 		isOnline = true
-		go switchAction[0](true)
+		if len(switchAction) > 0 {
+			go switchAction[0](true)
+		}
 	}
 	return true
 }
