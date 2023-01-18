@@ -8,7 +8,9 @@
  */
 package main
 
-import "github.com/shenguanjiejie/go-tools"
+import (
+	"github.com/shenguanjiejie/go-tools"
+)
 
 func main() {
 	// tools.HttpGet("https://jsonplaceholder.typicode.com/posts/1", nil, &tools.HttpConfig{Log: tools.LogAll})
@@ -19,10 +21,10 @@ func main() {
 func testLog() {
 	// tools.Logln()
 	// tools.Logln("test")
-	// tools.Logln(tools.Condition(true), "true")
-	// tools.Logln(tools.Condition(false), "false") // RJ 2022-10-17 10:24:04 不打印
-	// tools.Logln(tools.CallerLevel(0), "true")
-	// tools.Logln(tools.CallerLevel(1), "true")
-	tools.Logln(tools.Condition(true), tools.CallerLevel(1), "true 1")
-	tools.Logln(tools.Condition(false), tools.CallerLevel(1), "false 1") // RJ 2022-10-17 10:24:09 不打印
+	// tools.Logln(tools.LogCondition(true), "true")
+	// tools.Logln(tools.LogCondition(false), "false") // RJ 2022-10-17 10:24:04 不打印
+	// tools.Logln(tools.LogCallerLevel(0), "true")
+	// tools.Logln(tools.LogCallerLevel(1), "true")
+	tools.Logln(tools.LogCondition(true), tools.LogCallerLevel(1), "true 1")
+	tools.Logln(tools.LogCondition(false), tools.LogCallerLevel(1), "false 1") // RJ 2022-10-17 10:24:09 不打印
 }

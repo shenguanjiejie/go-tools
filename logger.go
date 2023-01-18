@@ -7,15 +7,28 @@ import (
 	"time"
 )
 
-// RJ 2022-10-14 15:55:01 条件打印, 如果要设置该条件, 需放在第一个参数位置
-type Condition bool
+/**RJ 2023-01-18 14:37:40
+LogCondition & LogCallerLevel & LogLineLevel
+1. 仅用来配置打印的条件, 这几个参数在log之前会被移除, 不会打印出来.
+2. 不限制放在log中的位置, 不过建议Condition放在最前面
 
-var conditionType = reflect.TypeOf(Condition(true))
+eg: tools.Logln(LogCondition(true),LogCallerLevel(1),LogLineLevel(2),"test", nil, []int{1,2,3})
+*/
+
+// RJ 2022-10-14 15:55:01 条件打印
+type LogCondition bool
+
+var conditionType = reflect.TypeOf(LogCondition(true))
 
 // RJ 2022-10-14 15:23:01 输出的方法名的层级, 默认为0, 代表输出当前方法名, 如果要输出上层方法名(比如闭包内打印), 则该参数设置为CallerLevel(1)即可, 以此类推.
-type CallerLevel int
+type LogCallerLevel int
 
-var callerLevelType = reflect.TypeOf(CallerLevel(0))
+var callerLevelType = reflect.TypeOf(LogCallerLevel(0))
+
+// RJ 2023-01-18 13:36:16  输出的行号的层级, 默认为0, 代表输出当前所在代码块的行号, 如果要输出上层代码块的行号(比如闭包内打印), 则该参数设置为LineLevel(1)即可, 以此类推.
+type LogLineLevel int
+
+var lineLevelType = reflect.TypeOf(LogLineLevel(0))
 
 // Log 带行号输出
 func Log(a ...interface{}) {
@@ -30,11 +43,11 @@ func Log(a ...interface{}) {
 		return
 	}
 
-	format, slice := formatWithValues(pc, codeLine, slogFormat(newA), newA...)
+	format, slice := formatWithValues(pc, codeLine, logFormat(newA), newA...)
 	fmt.Printf(format, slice...)
 }
 
-// Logln 带行号输出
+// Logln 带行号换行输出
 func Logln(a ...interface{}) {
 	condition, newA, pc, codeLine, ok := logStackInfo(a...)
 
@@ -47,7 +60,7 @@ func Logln(a ...interface{}) {
 		return
 	}
 
-	format, slice := formatWithValues(pc, codeLine, slogFormat(newA), newA...)
+	format, slice := formatWithValues(pc, codeLine, logFormat(newA), newA...)
 	fmt.Printf(format+"\n", slice...)
 }
 
@@ -72,54 +85,46 @@ func logStackInfo(a ...interface{}) (condition bool, newA []interface{}, pc uint
 	newA = a
 	currentLevel := 2
 
-	callerHandle := func(data interface{}) uintptr {
-		if data == nil {
-			return 0
-		}
+	condition = true
 
-		// RJ 2022-10-17 10:41:05 获取对应CallerLevel的pc
-		if reflect.TypeOf(data) == callerLevelType {
-			// RJ 2022-10-17 10:52:52 由于在闭包内, 所以需要再+1
-			callerInt := int(data.(CallerLevel)) + 1
-			newA = newA[1:]
-			pc, _, _, ok = runtime.Caller(callerInt + currentLevel)
-			if !ok {
-				return 0
+	for i := 0; i < len(newA); i++ {
+		obj := newA[i]
+		// RJ 2023-01-18 14:27:32 不是logger用来做判定的类型
+		if obj == nil || (reflect.TypeOf(obj) != conditionType && reflect.TypeOf(obj) != callerLevelType && reflect.TypeOf(obj) != lineLevelType) {
+			continue
+		}
+		if reflect.TypeOf(obj) == conditionType {
+			if !obj.(LogCondition) {
+				condition = false
+			}
+		} else if condition && reflect.TypeOf(obj) == callerLevelType {
+			callerLevelInt := int(obj.(LogCallerLevel))
+			if line == 0 {
+				pc, _, line, ok = runtime.Caller(callerLevelInt + currentLevel)
+			} else {
+				pc, _, _, ok = runtime.Caller(callerLevelInt + currentLevel)
+			}
+
+		} else if condition && reflect.TypeOf(obj) == lineLevelType {
+			lineLevelInt := int(obj.(LogLineLevel))
+			if pc == 0 {
+				pc, _, line, _ = runtime.Caller(lineLevelInt + currentLevel)
+			} else {
+				_, _, line, _ = runtime.Caller(lineLevelInt + currentLevel)
 			}
 		}
-		return pc
+
+		newA = append(newA[:i], newA[i+1:]...)
+		i--
 	}
 
-	// RJ 2022-10-14 15:16:56 判断是否传入了Condition或CallerLevel来指定输出的层
-	if len(a) > 0 && a[0] != nil {
-		data := a[0]
-
-		if reflect.TypeOf(data) == conditionType {
-			// RJ 2022-10-14 16:02:08 Condition是不是false, 如果是, 则无需打印
-			if !data.(Condition) {
-				return
-			}
-
-			newA = a[1:]
-
-			if len(newA) > 0 {
-				pc = callerHandle(newA[0])
-			}
-		} else {
-			pc = callerHandle(data)
-		}
-	}
-
-	// RJ 2022-10-14 15:18:50 未指定输出的方法层, 则默认取当前层pc
-	if pc == 0 {
+	if condition && pc == 0 && line == 0 {
 		pc, _, line, ok = runtime.Caller(currentLevel)
-	} else {
-		_, _, line, ok = runtime.Caller(currentLevel)
 	}
-	return true, newA, pc, line, ok
+	return
 }
 
-func slogFormat(a ...interface{}) string {
+func logFormat(a ...interface{}) string {
 	formatStr := ""
 	dataArr, ok := a[0].([]interface{})
 	if !ok {
@@ -128,7 +133,7 @@ func slogFormat(a ...interface{}) string {
 
 	for _, data := range dataArr {
 		switch data.(type) {
-		case nil, bool, int, int64, string, error:
+		case nil, bool, int, int32, int64, string, error, float32, float64:
 			formatStr += "%v, "
 		default:
 			formatStr += "%#v, "

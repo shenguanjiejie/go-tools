@@ -9,23 +9,43 @@
 package tools
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
 )
 
 func TestLog(t *testing.T) {
-	Logln()
-	Logln(nil, "test", 1)
-	Logln(Condition(true), "true")
-	Logln(Condition(false), "false") // RJ 2022-10-17 10:24:04 不打印
-	Logln(CallerLevel(0), 0)
-	Logln(CallerLevel(1), 1)
-	Logln(Condition(true), CallerLevel(0), nil, "true 1")
-	Logln(Condition(false), CallerLevel(1), "false 1") // RJ 2022-10-17 10:24:09 不打印
-	timeNow := time.Now().Add(1 * time.Hour)
-	Logln(timeNow)
-	Logln(time.Now())
-	fmt.Println(timeNow)
-	fmt.Println(time.Now())
+	func() {
+		Logln()
+		Logln(nil, "test", 1)
+		Logln(LogCondition(true), "true")
+		Logln(LogCondition(false), "false") // RJ 2022-10-17 10:24:04 不打印
+		Logln(LogCallerLevel(0), 0)
+		Logln(LogCallerLevel(1), LogLineLevel(0), 1)
+		Logln(nil, LogLineLevel(1), "true 1", LogCallerLevel(0), []int{1, 2, 3}, LogCondition(true)) // All
+		Logln(LogCondition(false), LogCallerLevel(1), "false 1")                                     // RJ 2022-10-17 10:24:09 不打印
+		Logln(time.Now())
+		fmt.Println(time.Now())
+	}()
+
+}
+
+func TestLogType(t *testing.T) {
+	s := "指针"
+	sP := &s
+
+	arr := []int{1, 2, 3}
+	arrP := &arr
+
+	obj := struct{ a int }{1}
+	objP := &obj
+
+	Logln(nil)
+	Logln(s, *sP)
+	Logln(arr, arrP)
+	Logln(obj, objP)
+	Logln(1, int64(1))
+	Logln(errors.New("error"))
+	Logln(true)
 }

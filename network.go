@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -20,6 +19,7 @@ type LogLevel int
 
 // RJ 2022-10-14 11:43:33 日志配置, 默认LogAll
 const (
+	LogNil  LogLevel = LogLevel(0)
 	LogNone LogLevel = 1 << iota
 	LogURL
 	LogParams
@@ -40,9 +40,11 @@ const (
 
 type HttpConfig struct {
 	Header      http.Header
-	Log         LogLevel
-	Timeout     time.Duration
-	ContentType string // post only
+	Log         LogLevel       // default: LogAll
+	LogCaller   LogCallerLevel // 默认为LogCallerLevel(0), 代表请求位置的方法,如果想看tools内部打印所在的方法, 可以传LogCallerLevel(-2)
+	LogLine     LogLineLevel   // 默认为LogLineLevel(0), 代表请求位置的行号,如果想看tools内部的打印所在的行, 可以传LogLineLevel(-2)
+	Timeout     time.Duration  // 为0会忽略
+	ContentType string         // default: "application/json" , post only
 }
 
 type httpConfig struct {
@@ -53,7 +55,8 @@ type httpConfig struct {
 	Body   io.Reader
 }
 
-/**HttpGet
+/*
+*HttpGet
 @param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
 */
 func HttpGet(urlStr string, values url.Values, obj interface{}, config ...*HttpConfig) error {
@@ -75,21 +78,25 @@ func HttpGet(urlStr string, values url.Values, obj interface{}, config ...*HttpC
 	return err
 }
 
-/**HttpPost
+/*
+*HttpPost
 @param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
 */
 func HttpPost(url string, dataMap map[string]string, obj interface{}, config ...*HttpConfig) error {
 	var iconfig *httpConfig
-	shouldLogError := Condition(false)
+	shouldLogError := LogCondition(false)
 	if len(config) > 0 {
 		iconfig = &httpConfig{HttpConfig: *config[0]}
-		shouldLogError = Condition(iconfig.Log&LogError != 0)
+		if iconfig.Log == LogNil {
+			iconfig.Log = LogAll
+		}
+		shouldLogError = LogCondition(iconfig.Log&LogError != 0)
 	} else {
 		iconfig = defaultConfig
 	}
 	jsonParams, err := json.Marshal(dataMap)
 	if err != nil {
-		Logln(shouldLogError,CallerLevel(1), err)
+		Logln(shouldLogError, LogCallerLevel(iconfig.LogCaller+1), LogLineLevel(iconfig.LogLine+1), err)
 		return err
 	}
 
@@ -105,7 +112,8 @@ func HttpPost(url string, dataMap map[string]string, obj interface{}, config ...
 	return err
 }
 
-/**HttpFormDataPost
+/*
+*HttpFormDataPost
 @param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
 */
 func HttpFormDataPost(url string, dataMap map[string]string, obj interface{}, config ...*HttpConfig) error {
@@ -166,14 +174,18 @@ func createMultipartFormBody(params map[string]string) (*bytes.Buffer, string) {
 
 func request(obj interface{}, config *httpConfig) error {
 	client := http.DefaultClient
-	shouldLogError := Condition(config.Log&LogError != 0)
-	callerLevel := CallerLevel(2)
-	Logln(Condition(config.Log&LogURL != 0), callerLevel, config.Method, config.URL)
-	Logln(Condition(config.Log&LogParams != 0), callerLevel, config.Params)
+	if config.Log == LogNil {
+		config.Log = LogAll
+	}
+	shouldLogError := LogCondition(config.Log&LogError != 0)
+	callerLevel := config.LogCaller + 2
+	lineLevel := config.LogLine + 2
+	Logln(LogCondition(config.Log&LogURL != 0), callerLevel, lineLevel, config.Method, config.URL)
+	Logln(LogCondition(config.Log&LogParams != 0), callerLevel, lineLevel, config.Params)
 
 	request, err := http.NewRequest(config.Method, config.URL, config.Body)
 	if err != nil {
-		Logln(shouldLogError, err)
+		Logln(shouldLogError, callerLevel, lineLevel, err)
 		return err
 	}
 
@@ -190,29 +202,29 @@ func request(obj interface{}, config *httpConfig) error {
 
 	response, err := client.Do(request)
 	if err != nil {
-		Logln(shouldLogError, callerLevel, err)
+		Logln(shouldLogError, callerLevel, lineLevel, err)
 		return err
 	}
 
 	if obj != nil && reflect.TypeOf(obj) == reflect.TypeOf(response) {
 		*(obj.(*http.Response)) = *response
-		Logln(Condition(config.Log&LogResponse != 0), callerLevel, obj)
+		Logln(LogCondition(config.Log&LogResponse != 0), callerLevel, lineLevel, obj)
 		return nil
 	}
-	result, err := ioutil.ReadAll(response.Body)
+	result, err := io.ReadAll(response.Body)
 	if err != nil {
-		Logln(shouldLogError, callerLevel, err)
+		Logln(shouldLogError, callerLevel, lineLevel, err)
 		return err
 	}
 	if obj != nil {
 		err = json.Unmarshal(result, &obj)
 		if err != nil {
-			Logln(shouldLogError, callerLevel, err)
+			Logln(shouldLogError, callerLevel, lineLevel, err)
 			return err
 		}
-		Logln(Condition(config.Log&LogObj != 0), callerLevel, obj)
+		Logln(LogCondition(config.Log&LogObj != 0), callerLevel, lineLevel, obj)
 	}
-	Logln(Condition(config.Log&LogResponse != 0), callerLevel, string(result))
+	Logln(LogCondition(config.Log&LogResponse != 0), callerLevel, lineLevel, string(result))
 
 	return nil
 }

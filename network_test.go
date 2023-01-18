@@ -22,7 +22,7 @@ type User struct {
 func TestHttpGet(t *testing.T) {
 	user := new(User)
 	HttpGet("https://jsonplaceholder.typicode.com/posts/1", nil, nil, &HttpConfig{Log: LogNone})
-	HttpGet("https://jsonplaceholder.typicode.com/posts/1", nil, nil, &HttpConfig{Log: LogURL})
+	HttpGet("https://jsonplaceholder.typicode.com/posts/1", nil, nil, &HttpConfig{Log: LogURL, LogCaller: LogCallerLevel(-2), LogLine: LogLineLevel(-2)})
 	HttpGet("https://jsonplaceholder.typicode.com/posts/1", nil, nil, &HttpConfig{Log: LogURL | LogParams})
 	HttpGet("https://jsonplaceholder.typicode.com/posts/1", nil, nil, &HttpConfig{Log: LogAll})
 	HttpGet("https://jsonplaceholder.typicode.com/posts/1", nil, user, &HttpConfig{Log: LogAll})

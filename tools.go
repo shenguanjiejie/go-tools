@@ -3,7 +3,7 @@ package tools
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"sync"
@@ -28,7 +28,7 @@ func TimeCost(signs ...string) func() {
 	start := time.Now()
 	return func() {
 		tc := time.Since(start)
-		Logln(CallerLevel(1), "%v time cost = %v\n", signs, tc)
+		Logln(LogCallerLevel(1), "%v time cost = %v\n", signs, tc)
 	}
 }
 
@@ -71,7 +71,7 @@ func LoadFile(path string) []byte {
 	if err != nil {
 		Logln(err)
 	}
-	byteValue, _ := ioutil.ReadAll(file)
+	byteValue, _ := io.ReadAll(file)
 	return byteValue
 }
 
@@ -104,7 +104,7 @@ func InternetCheck(logLevel LogLevel, switchAction ...func(isOnline bool)) bool 
 	err := HttpGet("http://connect.rom.miui.com/generate_204", nil, res, &HttpConfig{Log: logLevel})
 
 	if err != nil || res.StatusCode != 204 {
-		Logln(Condition(err != nil), err)
+		Logln(LogCondition(err != nil), err)
 		if isOnline {
 			isOnline = false
 			if len(switchAction) > 0 {
