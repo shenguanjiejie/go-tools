@@ -9,7 +9,7 @@
 package main
 
 import (
-	"github.com/shenguanjiejie/go-tools"
+	"github.com/shenguanjiejie/go-tools/v2"
 )
 
 func main() {
