@@ -90,14 +90,15 @@ func logStackInfo(a ...interface{}) (condition bool, newA []interface{}, pc uint
 	for i := 0; i < len(newA); i++ {
 		obj := newA[i]
 		// RJ 2023-01-18 14:27:32 不是logger用来做判定的类型
-		if obj == nil || (reflect.TypeOf(obj) != conditionType && reflect.TypeOf(obj) != callerLevelType && reflect.TypeOf(obj) != lineLevelType) {
+		objType := reflect.TypeOf(obj)
+		if obj == nil || (objType != conditionType && objType != callerLevelType && objType != lineLevelType) {
 			continue
 		}
-		if reflect.TypeOf(obj) == conditionType {
+		if objType == conditionType {
 			if !obj.(LogCondition) {
 				condition = false
 			}
-		} else if condition && reflect.TypeOf(obj) == callerLevelType {
+		} else if condition && objType == callerLevelType {
 			callerLevelInt := int(obj.(LogCallerLevel))
 			if line == 0 {
 				pc, _, line, ok = runtime.Caller(callerLevelInt + currentLevel)
@@ -105,7 +106,7 @@ func logStackInfo(a ...interface{}) (condition bool, newA []interface{}, pc uint
 				pc, _, _, ok = runtime.Caller(callerLevelInt + currentLevel)
 			}
 
-		} else if condition && reflect.TypeOf(obj) == lineLevelType {
+		} else if condition && objType == lineLevelType {
 			lineLevelInt := int(obj.(LogLineLevel))
 			if pc == 0 {
 				pc, _, line, _ = runtime.Caller(lineLevelInt + currentLevel)
@@ -133,7 +134,7 @@ func logFormat(a ...interface{}) string {
 
 	for _, data := range dataArr {
 		switch data.(type) {
-		case nil, bool, int, int32, int64, string, error, float32, float64:
+		case nil, bool, int, int8, int16, int32, int64, string, error, float32, float64:
 			formatStr += "%v, "
 		default:
 			formatStr += "%#v, "

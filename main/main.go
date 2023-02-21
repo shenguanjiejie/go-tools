@@ -8,9 +8,7 @@
  */
 package main
 
-import (
-	"github.com/shenguanjiejie/go-tools/v2"
-)
+import "github.com/shenguanjiejie/go-tools/v2"
 
 func main() {
 	// tools.HttpGet("https://jsonplaceholder.typicode.com/posts/1", nil, &tools.HttpConfig{Log: tools.LogAll})
