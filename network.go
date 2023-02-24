@@ -71,7 +71,7 @@ func HttpGet(urlStr string, values url.Values, obj interface{}, config ...*HttpC
 		url = fmt.Sprintf("%s?%s", urlStr, values.Encode())
 	}
 
-	iconfig.Method = HttpMethodPOST
+	iconfig.Method = HttpMethodGET
 	iconfig.URL = url
 	iconfig.Params = values
 	err := request(obj, iconfig)
