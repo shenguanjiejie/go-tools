@@ -99,14 +99,14 @@ func HttpDelete(urlStr string, values url.Values, obj interface{}, config ...*Ht
 	return err
 }
 
-func post(method string, url string, dataMap map[string]string, obj interface{}, config ...*HttpConfig) error {
+func post(method string, url string, data interface{}, obj interface{}, config ...*HttpConfig) error {
 	iconfig := configWithParams(config...)
-	jsonParams, _ := json.Marshal(dataMap)
+	jsonParams, _ := json.Marshal(data)
 
 	iconfig.URL = url
 	iconfig.Method = HTTPMethodPost
 	iconfig.Body = bytes.NewBuffer(jsonParams)
-	iconfig.Params = dataMap
+	iconfig.Params = data
 	if iconfig.ContentType == "" {
 		iconfig.ContentType = "application/json"
 	}
@@ -119,22 +119,22 @@ func post(method string, url string, dataMap map[string]string, obj interface{},
 *HttpPost
 @param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
 */
-func HttpPost(url string, dataMap map[string]string, obj interface{}, config ...*HttpConfig) error {
-	return post(HTTPMethodPost, url, dataMap, obj, config...)
+func HttpPost(url string, data interface{}, obj interface{}, config ...*HttpConfig) error {
+	return post(HTTPMethodPost, url, data, obj, config...)
 }
 
 /*
 *HttpFormDataPost
 @param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
 */
-func HttpFormDataPost(url string, dataMap map[string]string, obj interface{}, config ...*HttpConfig) error {
-	cmdResReqForm, contentType := createMultipartFormBody(dataMap)
+func HttpFormDataPost(url string, data map[string]string, obj interface{}, config ...*HttpConfig) error {
+	cmdResReqForm, contentType := createMultipartFormBody(data)
 	iconfig := configWithParams(config...)
 
 	iconfig.URL = url
 	iconfig.Method = HTTPMethodPost
 	iconfig.Body = cmdResReqForm
-	iconfig.Params = dataMap
+	iconfig.Params = data
 	iconfig.ContentType = contentType
 	request(obj, iconfig)
 	return nil
@@ -182,16 +182,16 @@ func createMultipartFormBody(params map[string]string) (*bytes.Buffer, string) {
 *HttpPost
 @param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
 */
-func HttpPut(url string, dataMap map[string]string, obj interface{}, config ...*HttpConfig) error {
-	return post(HTTPMethodPut, url, dataMap, obj, config...)
+func HttpPut(url string, data interface{}, obj interface{}, config ...*HttpConfig) error {
+	return post(HTTPMethodPut, url, data, obj, config...)
 }
 
 /*
 *HttpPost
 @param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
 */
-func HttpPatch(url string, dataMap map[string]string, obj interface{}, config ...*HttpConfig) error {
-	return post(HTTPMethodPatch, url, dataMap, obj, config...)
+func HttpPatch(url string, data interface{}, obj interface{}, config ...*HttpConfig) error {
+	return post(HTTPMethodPatch, url, data, obj, config...)
 }
 
 func configWithParams(config ...*HttpConfig) *httpConfig {
@@ -240,6 +240,7 @@ func request(obj interface{}, config *httpConfig) error {
 	if obj != nil && reflect.TypeOf(obj) == reflect.TypeOf(response) {
 		*(obj.(*http.Response)) = *response
 		Logln(LogCondition(config.Log&LogResponse != 0), callerLevel, lineLevel, obj)
+		response.Body.Close()
 		return nil
 	}
 	result, err := io.ReadAll(response.Body)

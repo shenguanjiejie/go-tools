@@ -31,13 +31,20 @@ func TestHttpGet(t *testing.T) {
 func TestHttpPost(t *testing.T) {
 
 	user := new(User)
-	params := map[string]string{
-		"userId": "1",
-		"id":     "101",
-		"title":  "title test",
-		"body":   "body test",
-	}
-	HttpPost("https://jsonplaceholder.typicode.com/posts", params, user, &HttpConfig{Log: LogAll})
+	user.UserID = 1
+	user.ID = 101
+	user.Title = "title"
+	user.Body = "body"
+
+	newUser := new(User)
+
+	// params := map[string]interface{}{
+	// 	"userId": "1",
+	// 	"id":     "101",
+	// 	"title":  "title test",
+	// 	"body":   "body test",
+	// }
+	HttpPost("https://jsonplaceholder.typicode.com/posts", user, newUser, &HttpConfig{Log: LogAll})
 }
 
 func TestHttpFormDataPost(t *testing.T) {
