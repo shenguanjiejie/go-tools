@@ -10,14 +10,12 @@ import (
 	"net/url"
 	"os"
 	"reflect"
-	"strconv"
-	"strings"
 	"time"
 
-	"github.com/dlclark/regexp2"
+	jsoniter "github.com/json-iterator/go"
 )
 
-//LogLevel 日志级别
+// LogLevel 日志级别
 type LogLevel int
 
 // RJ 2022-10-14 11:43:33 日志配置, 默认LogAll
@@ -51,7 +49,7 @@ type HttpConfig struct {
 	LogLine       LogLineLevel   // 默认为LogLineLevel(0), 代表请求位置的行号,如果想看tools内部的打印所在的行, 可以传LogLineLevel(-2)
 	Timeout       time.Duration  // 为0会忽略
 	ContentType   string         // default: "application/json" , post only
-	UnmarshalNode string         //  仅当obj参数不为nil时有效, eg:"a.b.c", 则解析json中的a下面的b下面的c节点.
+	UnmarshalPath []interface{}  //  仅当obj参数不为nil时有效, eg:[]interface{}{"a",0,"b"}, 将会解析a下面的第1个元素的b节点
 }
 
 type httpConfig struct {
@@ -249,45 +247,21 @@ func request(obj interface{}, config *httpConfig) error {
 		Logln(shouldLogError, callerLevel, lineLevel, err)
 		return err
 	}
-	if obj != nil {
-		if config.UnmarshalNode != "" {
-			nodes := strings.Split(config.UnmarshalNode, ".")
-			regexStr := "((?<=("
-			for _, key := range nodes {
-				_, err := strconv.Atoi(key)
-				if err != nil {
-					// TODO: 数组index支持
-				}
-				regexStr += `(\{|\[).*"` + key + `":`
-			}
-			regexStr += "))"
-			// RJ 2023-03-06 21:12:00 ((?<=((\{|\[).*"data":(\{|\[).*"sub_data":))((\{.+\})|(\[.+\])|(("(?:[^"\\]|\\.)*")|((\d+\.\d+)|(\d+))))((?=,)|(^,.*\}|\])))
-			regexStr += jsonNodeRegex
-			// RJ 2023-03-06 21:01:15 Go不支持正则的lookarround
-			reg := regexp2.MustCompile(regexStr, regexp2.None)
-			match, err := reg.FindStringMatch(string(result))
-			matchStr := match.String()
-			err = json.Unmarshal([]byte(matchStr), &obj)
-			if err != nil {
-				Logln(shouldLogError, callerLevel, lineLevel, err)
-				return err
-			}
-		} else {
-			err = json.Unmarshal(result, &obj)
-			if err != nil {
-				Logln(shouldLogError, callerLevel, lineLevel, err)
-				return err
-			}
-		}
 
-		err = json.Unmarshal(result, &obj)
+	Logln(LogCondition(config.Log&LogResponse != 0), callerLevel, lineLevel, string(result))
+
+	if obj != nil {
+		if len(config.UnmarshalPath) > 0 {
+			value := jsoniter.Get(result, config.UnmarshalPath...)
+			result = []byte(value.ToString())
+		}
+		err = jsoniter.Unmarshal(result, &obj)
 		if err != nil {
 			Logln(shouldLogError, callerLevel, lineLevel, err)
 			return err
 		}
 		Logln(LogCondition(config.Log&LogObj != 0), callerLevel, lineLevel, obj)
 	}
-	Logln(LogCondition(config.Log&LogResponse != 0), callerLevel, lineLevel, string(result))
 
 	return nil
 }
