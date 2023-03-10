@@ -18,3 +18,15 @@ func TestInternet(t *testing.T) {
 
 	time.Sleep(time.Minute * 5)
 }
+
+func TestWaitHandle(t *testing.T) {
+	waitChan := make(chan interface{}, 0)
+	WaitHandle(waitChan, 10, func() {
+		for i := 0; i < 1000; i++ {
+			waitChan <- i
+		}
+	}, func(channelObj interface{}) {
+		time.Sleep(time.Second)
+		Logln(channelObj)
+	})
+}

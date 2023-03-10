@@ -43,13 +43,15 @@ func WaitHandle(channel chan interface{}, goCount int, waitingFor func(), asyncH
 	for i := 0; i < goCount; i++ {
 		waitGroup.Add(1)
 		go func() {
+		Loop:
 			for {
-				obj, ok := <-channel
-				if !ok {
-					break
+				select {
+				case obj, ok := <-channel:
+					if !ok {
+						break Loop
+					}
+					asyncHandle(obj)
 				}
-
-				asyncHandle(obj)
 			}
 			waitGroup.Done()
 		}()

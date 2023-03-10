@@ -33,14 +33,6 @@ const (
 	LogAll           = LogAllWithoutObj | LogObj
 )
 
-const (
-	HTTPMethodGet    = "GET"
-	HTTPMethodPost   = "POST"
-	HTTPMethodPut    = "PUT"
-	HTTPMethodPatch  = "PATCH" // RFC 5789
-	HTTPMethodDelete = "DELETE"
-)
-
 // HttpConfig 额外配置, 未进行配置的项, 会使用默认值
 type HttpConfig struct {
 	Header        http.Header
@@ -49,7 +41,7 @@ type HttpConfig struct {
 	LogLine       LogLineLevel   // 默认为LogLineLevel(0), 代表请求位置的行号,如果想看tools内部的打印所在的行, 可以传LogLineLevel(-2)
 	Timeout       time.Duration  // 为0会忽略
 	ContentType   string         // default: "application/json" , post only
-	UnmarshalPath []interface{}  //  仅当obj参数不为nil时有效, eg:[]interface{}{"a",0,"b"}, 将会解析a下面的第1个元素的b节点
+	UnmarshalPath []interface{}  // 仅当obj参数不为nil时有效, eg:[]interface{}{"a",0,"b"}, 将会解析a下面的第1个元素的b节点
 }
 
 type httpConfig struct {
@@ -61,7 +53,6 @@ type httpConfig struct {
 }
 
 var defaultConfig = &httpConfig{HttpConfig: HttpConfig{Log: LogAll}}
-var jsonNodeRegex = `((\{.+\})|(\[.+\])|(("(?:[^"\\]|\\.)*")|((\d+\.\d+)|(\d+))))((?=,)|(^,.*\}|\])))`
 
 /*
 *HttpGet
@@ -74,7 +65,7 @@ func HttpGet(urlStr string, values url.Values, obj interface{}, config ...*HttpC
 		url = fmt.Sprintf("%s?%s", urlStr, values.Encode())
 	}
 
-	iconfig.Method = HTTPMethodGet
+	iconfig.Method = http.MethodGet
 	iconfig.URL = url
 	iconfig.Params = values
 	err := request(obj, iconfig)
@@ -82,7 +73,7 @@ func HttpGet(urlStr string, values url.Values, obj interface{}, config ...*HttpC
 }
 
 /*
-*HttpGet
+* HttpDelete
 @param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
 */
 func HttpDelete(urlStr string, values url.Values, obj interface{}, config ...*HttpConfig) error {
@@ -92,19 +83,19 @@ func HttpDelete(urlStr string, values url.Values, obj interface{}, config ...*Ht
 		url = fmt.Sprintf("%s?%s", urlStr, values.Encode())
 	}
 
-	iconfig.Method = HTTPMethodDelete
+	iconfig.Method = http.MethodDelete
 	iconfig.URL = url
 	iconfig.Params = values
 	err := request(obj, iconfig)
 	return err
 }
 
-func post(method string, url string, data interface{}, obj interface{}, config ...*HttpConfig) error {
+func requestWithData(method string, url string, data interface{}, obj interface{}, config ...*HttpConfig) error {
 	iconfig := configWithParams(config...)
 	jsonParams, _ := json.Marshal(data)
 
 	iconfig.URL = url
-	iconfig.Method = HTTPMethodPost
+	iconfig.Method = http.MethodPost
 	iconfig.Body = bytes.NewBuffer(jsonParams)
 	iconfig.Params = data
 	if iconfig.ContentType == "" {
@@ -116,15 +107,15 @@ func post(method string, url string, data interface{}, obj interface{}, config .
 }
 
 /*
-*HttpPost
+* HttpPost
 @param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
 */
 func HttpPost(url string, data interface{}, obj interface{}, config ...*HttpConfig) error {
-	return post(HTTPMethodPost, url, data, obj, config...)
+	return requestWithData(http.MethodPost, url, data, obj, config...)
 }
 
 /*
-*HttpFormDataPost
+* HttpFormDataPost
 @param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
 */
 func HttpFormDataPost(url string, data map[string]string, obj interface{}, config ...*HttpConfig) error {
@@ -132,7 +123,7 @@ func HttpFormDataPost(url string, data map[string]string, obj interface{}, confi
 	iconfig := configWithParams(config...)
 
 	iconfig.URL = url
-	iconfig.Method = HTTPMethodPost
+	iconfig.Method = http.MethodPost
 	iconfig.Body = cmdResReqForm
 	iconfig.Params = data
 	iconfig.ContentType = contentType
@@ -179,19 +170,19 @@ func createMultipartFormBody(params map[string]string) (*bytes.Buffer, string) {
 }
 
 /*
-*HttpPost
+* HttpPut
 @param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
 */
 func HttpPut(url string, data interface{}, obj interface{}, config ...*HttpConfig) error {
-	return post(HTTPMethodPut, url, data, obj, config...)
+	return requestWithData(http.MethodPut, url, data, obj, config...)
 }
 
 /*
-*HttpPost
+* HttpPatch
 @param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
 */
 func HttpPatch(url string, data interface{}, obj interface{}, config ...*HttpConfig) error {
-	return post(HTTPMethodPatch, url, data, obj, config...)
+	return requestWithData(http.MethodPatch, url, data, obj, config...)
 }
 
 func configWithParams(config ...*HttpConfig) *httpConfig {
@@ -222,7 +213,7 @@ func request(obj interface{}, config *httpConfig) error {
 		request.Header = config.Header
 	}
 
-	if config.Method != HTTPMethodGet && config.Method != HTTPMethodDelete && request.Header.Get("Content-Type") == "" {
+	if config.Method != http.MethodGet && config.Method != http.MethodDelete && request.Header.Get("Content-Type") == "" {
 		request.Close = true
 		request.Header.Add("Content-Type", config.ContentType)
 	}
@@ -240,10 +231,10 @@ func request(obj interface{}, config *httpConfig) error {
 	if obj != nil && reflect.TypeOf(obj) == reflect.TypeOf(response) {
 		*(obj.(*http.Response)) = *response
 		Logln(LogCondition(config.Log&LogResponse != 0), callerLevel, lineLevel, obj)
-		response.Body.Close()
 		return nil
 	}
 	result, err := io.ReadAll(response.Body)
+	defer response.Body.Close()
 	if err != nil {
 		Logln(shouldLogError, callerLevel, lineLevel, err)
 		return err
