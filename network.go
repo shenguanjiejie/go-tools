@@ -18,9 +18,9 @@ import (
 // LogLevel 日志级别
 type LogLevel int
 
-// RJ 2022-10-14 11:43:33 日志配置, 默认LogAll
+// RJ 2022-10-14 11:43:33 日志配置, 默认LogAllWithoutObj
 const (
-	// 如果不需要打印, 请设置为LogNone, LogNil只是缺省值, 没有实际意义, 设置为LogNil相当于设置为LogAll
+	// 如果不需要打印, 请设置为LogNone, LogNil只是缺省值, 没有实际意义, 设置为LogNil相当于设置为LogAllWithoutObj
 	LogNil  LogLevel = LogLevel(0)
 	LogNone LogLevel = 1 << iota
 	LogURL
@@ -52,7 +52,7 @@ type httpConfig struct {
 	Body   io.Reader
 }
 
-var defaultConfig = &httpConfig{HttpConfig: HttpConfig{Log: LogAll}}
+var defaultConfig = &httpConfig{HttpConfig: HttpConfig{Log: LogAllWithoutObj}}
 
 /*
 *HttpGet
