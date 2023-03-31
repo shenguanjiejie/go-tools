@@ -8,11 +8,12 @@ import (
 )
 
 /**
-LogCondition & LogCallerLevel & LogLineLevel & LogLevel
+LogCondition & LogCallerLevel & LogLineLevel
 1. 仅用来配置打印的条件, 这几个参数在log之前会被移除, 不会打印出来.
 2. 不限制放在参数中的位置, 不过建议Condition放在最前面
+3. go-tools是一个轻量级的工具库, 本身没有实现对LogLevel的支持. 如果有LogLevel的需求, 可以集成其他logger(调用SetLogger方法设置). 前提是要支持下方定义的Logger接口.
 
-eg: tools.Logln(LogCondition(true),LogCallerLevel(1),LogLineLevel(2), LogLevelError,"err_msg", nil, []int{1,2,3})
+eg: tools.Logln(LogCondition(true),LogCallerLevel(1), LogLevelError,"err_msg", nil, []int{1,2,3})
 */
 
 // 条件打印
@@ -30,18 +31,17 @@ type LogLineLevel int
 
 var lineLevelType = reflect.TypeOf(LogLineLevel(0))
 
-// go-tools是一个轻量级的工具库, 本身没有实现对LogLevel的支持. 如果有LogLevel的需求, 可以集成其他logger(调用SetLogger方法设置). 前提是要支持下方定义的Logger接口.
-type LogLevel int
+type logLevel int
 
 // 如果集成了其他实现了Logger接口的logger, 可以把级别作为参数传入, 默认为LogLevelInfo
 const (
-	LogLevelInfo LogLevel = iota
-	LogLevelDebug
-	LogLevelWarn
-	LogLevelError
+	logLevelInfo logLevel = iota
+	logLevelDebug
+	logLevelWarn
+	logLevelError
 )
 
-var logLevelType = reflect.TypeOf(LogLevelInfo)
+var logLevelType = reflect.TypeOf(logLevelInfo)
 
 // 调用SetLogger方法设置logger
 var logger Logger
@@ -123,11 +123,11 @@ func Logf(format string, a ...interface{}) {
 	}
 }
 
-func logStackInfo(a ...interface{}) (condition bool, newA []interface{}, pc uintptr, line int, ok bool, logLevel LogLevel) {
+func logStackInfo(a ...interface{}) (condition bool, newA []interface{}, pc uintptr, line int, ok bool, level logLevel) {
 	newA = a
 	currentLevel := 2
 	condition = true
-	logLevel = LogLevelInfo
+	level = logLevelInfo
 
 	for i := 0; i < len(newA); i++ {
 		obj := newA[i]
@@ -156,7 +156,7 @@ func logStackInfo(a ...interface{}) (condition bool, newA []interface{}, pc uint
 				_, _, line, _ = runtime.Caller(lineLevelInt + currentLevel)
 			}
 		} else if condition && logger != nil && objType == logLevelType {
-			logLevel = obj.(LogLevel)
+			level = obj.(logLevel)
 		}
 
 		newA = append(newA[:i], newA[i+1:]...)
@@ -208,15 +208,47 @@ func SetBaseFormat(block func(timeStr string, funcName string, line int) (format
 	baseLogBlock = block
 }
 
-func logLevelLog(logLevel LogLevel, format string, slice ...interface{}) {
-	switch logLevel {
-	case LogLevelInfo:
+func logLevelLog(level logLevel, format string, slice ...interface{}) {
+	switch level {
+	case logLevelInfo:
 		logger.Infof(format, slice...)
-	case LogLevelDebug:
+	case logLevelDebug:
 		logger.Debugf(format, slice...)
-	case LogLevelWarn:
+	case logLevelWarn:
 		logger.Warnf(format, slice...)
-	case LogLevelError:
+	case logLevelError:
 		logger.Errorf(format, slice...)
 	}
+}
+
+func Debug(args ...interface{}) {
+	Logln(append(args, logLevelDebug)...)
+}
+
+func Info(args ...interface{}) {
+	Logln(append(args, logLevelInfo)...)
+}
+
+func Warn(args ...interface{}) {
+	Logln(append(args, logLevelWarn)...)
+}
+
+func Error(args ...interface{}) {
+	Logln(append(args, logLevelError)...)
+}
+
+func Debugf(template string, args ...interface{}) {
+	Logf(template, append(args, logLevelDebug)...)
+}
+
+func Infof(template string, args ...interface{}) {
+	Logf(template, append(args, logLevelInfo)...)
+}
+
+func Warnf(template string, args ...interface{}) {
+	Logf(template, append(args, logLevelWarn)...)
+}
+
+func Errorf(template string, args ...interface{}) {
+	Logf(template, append(args, logLevelError)...)
 }

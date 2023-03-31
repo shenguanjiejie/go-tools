@@ -56,3 +56,23 @@ func TestLogType(t *testing.T) {
 	Logln(errors.New("error"))
 	Logln(true)
 }
+
+func TestLogLevel(t *testing.T) {
+	s := "指针"
+	sP := &s
+
+	arr := []int{1, 2, 3}
+	arrP := &arr
+
+	obj := struct{ a int }{1}
+	objP := &obj
+
+	Info(nil)
+	Infof("%s_%v\n", *sP, arr)
+	Debug(arr, arrP)
+	Debugf("%s_%v\n", *sP, arr)
+	Warn(obj, objP)
+	Warnf("%s_%v\n", *sP, arr)
+	Error(errors.New("error"))
+	Errorf("%s_%v\n", *sP, arr)
+}
