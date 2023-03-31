@@ -20,15 +20,22 @@ func TestLog(t *testing.T) {
 		Logln()
 		Logln(nil, "test", 1)
 		Logln(LogCondition(true), "true")
-		Logln(LogCondition(false), "false") // RJ 2022-10-17 10:24:04 不打印
+		Logln(LogCondition(false), "false") // 不打印
 		Logln(LogCallerLevel(0), 0)
 		Logln(LogCallerLevel(1), LogLineLevel(0), 1)
 		Logln(nil, LogLineLevel(1), "true 1", LogCallerLevel(0), []int{1, 2, 3}, LogCondition(true)) // All
-		Logln(LogCondition(false), LogCallerLevel(1), "false 1")                                     // RJ 2022-10-17 10:24:09 不打印
+		Logln(LogCondition(false), LogCallerLevel(1), "false 1")                                     // 不打印
 		Logln(time.Now())
 		fmt.Println(time.Now())
 	}()
 
+}
+
+func TestLogf(t *testing.T) {
+	str := "logf"
+	i := 100
+	obj := struct{ Logf string }{"I'm an object"}
+	Logf("%s,%d,%v\n", str, i, obj)
 }
 
 func TestLogType(t *testing.T) {

@@ -8,21 +8,26 @@
  */
 package main
 
-import "github.com/shenguanjiejie/go-tools/v2"
+// "go.uber.org/zap"
 
 func main() {
-	// tools.HttpGet("https://jsonplaceholder.typicode.com/posts/1", nil, &tools.HttpConfig{Log: tools.LogAll})
-
 	testLog()
 }
 
 func testLog() {
-	// tools.Logln()
-	// tools.Logln("test")
-	// tools.Logln(tools.LogCondition(true), "true")
-	// tools.Logln(tools.LogCondition(false), "false") // RJ 2022-10-17 10:24:04 不打印
-	// tools.Logln(tools.LogCallerLevel(0), "true")
-	// tools.Logln(tools.LogCallerLevel(1), "true")
-	tools.Logln(tools.LogCondition(true), tools.LogCallerLevel(1), "true 1")
-	tools.Logln(tools.LogCondition(false), tools.LogCallerLevel(1), "false 1") // RJ 2022-10-17 10:24:09 不打印
+	// logger, _ := zap.NewProduction()
+	// defer logger.Sync() // flushes buffer, if any
+	// sugar := logger.Sugar()
+	// tools.SetLogger(sugar)
+	// tools.SetBaseFormat(func(timeStr string, funcName string, line int) (format string, args []interface{}) {
+	// 	return "%s--%d: ", []interface{}{timeStr, line}
+	// })
+
+	// tools.Logln(tools.LogLevelError, "err_msg")
+	// num := 100
+	// numF := 3.14
+	// sugar.Debugf("%d_%f", num, numF)
+	// tools.Logf("%d_%f", tools.LogLevelDebug, num, numF)
+	// tools.Log("%d_%f", tools.LogLevelWarn, num, numF)
+	// tools.Logln(num, nil, time.Now(), "哈哈")
 }

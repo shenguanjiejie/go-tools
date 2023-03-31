@@ -15,33 +15,33 @@ import (
 	jsoniter "github.com/json-iterator/go"
 )
 
-// LogLevel 日志级别
-type LogLevel int
+// NetLogLevel 日志级别
+type NetLogLevel int
 
-// RJ 2022-10-14 11:43:33 日志配置, 默认LogAllWithoutObj
+// 日志配置, 默认LogAllWithoutObj
 const (
-	// 如果不需要打印, 请设置为LogNone, LogNil只是缺省值, 没有实际意义, 设置为LogNil相当于设置为LogAllWithoutObj
-	LogNil  LogLevel = LogLevel(0)
-	LogNone LogLevel = 1 << iota
-	LogURL
-	LogParams
-	LogResponse
+	// 如果不需要打印, 请设置为NetLogNone, NetLogNil只是缺省值, 没有实际意义, 设置为NetLogNil相当于设置为NetLogAllWithoutObj
+	NetLogNil  NetLogLevel = NetLogLevel(0)
+	NetLogNone NetLogLevel = 1 << iota
+	NetLogURL
+	NetLogParams
+	NetLogResponse
 	//  LogObj 打印反序列化后的obj
-	LogObj
-	LogError
-	LogAllWithoutObj = LogURL | LogParams | LogResponse | LogError
-	LogAll           = LogAllWithoutObj | LogObj
+	NetLogObj
+	NetLogError
+	NetLogAllWithoutObj = NetLogURL | NetLogParams | NetLogResponse | NetLogError
+	NetLogAll           = NetLogAllWithoutObj | NetLogObj
 )
 
 // HttpConfig 额外配置, 未进行配置的项, 会使用默认值
 type HttpConfig struct {
 	Header        http.Header
-	Log           LogLevel       // default: LogAll
+	Log           NetLogLevel    // default: NetLogAll
 	LogCaller     LogCallerLevel // 默认为LogCallerLevel(0), 代表请求位置的方法,如果想看tools内部打印所在的方法, 可以传LogCallerLevel(-2)
 	LogLine       LogLineLevel   // 默认为LogLineLevel(0), 代表请求位置的行号,如果想看tools内部的打印所在的行, 可以传LogLineLevel(-2)
 	Timeout       time.Duration  // 为0会忽略
-	ContentType   string         // default: "application/json" , post only
 	UnmarshalPath []interface{}  // 仅当obj参数不为nil时有效, eg:[]interface{}{"a",0,"b"}, 将会解析a下面的第1个元素的b节点
+	contentType   string         // default: "application/json" , post only
 }
 
 type httpConfig struct {
@@ -52,7 +52,7 @@ type httpConfig struct {
 	Body   io.Reader
 }
 
-var defaultConfig = &httpConfig{HttpConfig: HttpConfig{Log: LogAllWithoutObj}}
+var defaultConfig = &httpConfig{HttpConfig: HttpConfig{Log: NetLogAllWithoutObj}}
 
 /*
 *HttpGet
@@ -98,8 +98,8 @@ func requestWithData(method string, url string, data interface{}, obj interface{
 	iconfig.Method = http.MethodPost
 	iconfig.Body = bytes.NewBuffer(jsonParams)
 	iconfig.Params = data
-	if iconfig.ContentType == "" {
-		iconfig.ContentType = "application/json"
+	if iconfig.contentType == "" {
+		iconfig.contentType = "application/json"
 	}
 	err := request(obj, iconfig)
 
@@ -126,7 +126,7 @@ func HttpFormDataPost(url string, data map[string]string, obj interface{}, confi
 	iconfig.Method = http.MethodPost
 	iconfig.Body = cmdResReqForm
 	iconfig.Params = data
-	iconfig.ContentType = contentType
+	iconfig.contentType = contentType
 	request(obj, iconfig)
 	return nil
 }
@@ -194,14 +194,14 @@ func configWithParams(config ...*HttpConfig) *httpConfig {
 
 func request(obj interface{}, config *httpConfig) error {
 	client := http.DefaultClient
-	if config.Log == LogNil {
-		config.Log = LogAll
+	if config.Log == NetLogNil {
+		config.Log = NetLogAll
 	}
-	shouldLogError := LogCondition(config.Log&LogError != 0)
+	shouldLogError := LogCondition(config.Log&NetLogError != 0)
 	callerLevel := config.LogCaller + 2
 	lineLevel := config.LogLine + 2
-	Logln(LogCondition(config.Log&LogURL != 0), callerLevel, lineLevel, config.Method, config.URL)
-	Logln(LogCondition(config.Log&LogParams != 0), callerLevel, lineLevel, config.Params)
+	Logln(LogCondition(config.Log&NetLogURL != 0), callerLevel, lineLevel, config.Method, config.URL)
+	Logln(LogCondition(config.Log&NetLogParams != 0), callerLevel, lineLevel, config.Params)
 
 	request, err := http.NewRequest(config.Method, config.URL, config.Body)
 	if err != nil {
@@ -215,7 +215,7 @@ func request(obj interface{}, config *httpConfig) error {
 
 	if config.Method != http.MethodGet && config.Method != http.MethodDelete && request.Header.Get("Content-Type") == "" {
 		request.Close = true
-		request.Header.Add("Content-Type", config.ContentType)
+		request.Header.Add("Content-Type", config.contentType)
 	}
 
 	if config.Timeout > 0 {
@@ -230,7 +230,7 @@ func request(obj interface{}, config *httpConfig) error {
 
 	if obj != nil && reflect.TypeOf(obj) == reflect.TypeOf(response) {
 		*(obj.(*http.Response)) = *response
-		Logln(LogCondition(config.Log&LogResponse != 0), callerLevel, lineLevel, obj)
+		Logln(LogCondition(config.Log&NetLogResponse != 0), callerLevel, lineLevel, obj)
 		return nil
 	}
 	result, err := io.ReadAll(response.Body)
@@ -240,7 +240,7 @@ func request(obj interface{}, config *httpConfig) error {
 		return err
 	}
 
-	Logln(LogCondition(config.Log&LogResponse != 0), callerLevel, lineLevel, string(result))
+	Logln(LogCondition(config.Log&NetLogResponse != 0), callerLevel, lineLevel, string(result))
 
 	if obj != nil {
 		if len(config.UnmarshalPath) > 0 {
@@ -252,7 +252,7 @@ func request(obj interface{}, config *httpConfig) error {
 			Logln(shouldLogError, callerLevel, lineLevel, err)
 			return err
 		}
-		Logln(LogCondition(config.Log&LogObj != 0), callerLevel, lineLevel, obj)
+		Logln(LogCondition(config.Log&NetLogObj != 0), callerLevel, lineLevel, obj)
 	}
 
 	return nil
