@@ -26,7 +26,7 @@ const (
 	NetLogURL
 	NetLogParams
 	NetLogResponse
-	//  LogObj 打印反序列化后的obj
+	// LogObj 打印反序列化后的obj
 	NetLogObj
 	NetLogError
 	NetLogAllWithoutObj = NetLogURL | NetLogParams | NetLogResponse | NetLogError
@@ -37,8 +37,8 @@ const (
 type HttpConfig struct {
 	Header        http.Header
 	Log           NetLogLevel    // default: NetLogAll
-	LogCaller     LogCallerLevel // 默认为LogCallerLevel(0), 代表请求位置的方法,如果想看tools内部打印所在的方法, 可以传LogCallerLevel(-2)
-	LogLine       LogLineLevel   // 默认为LogLineLevel(0), 代表请求位置的行号,如果想看tools内部的打印所在的行, 可以传LogLineLevel(-2)
+	LogCaller     LogCallerLevel // 默认为LogCallerLevel(0), 代表请求位置的方法,如果想看tools内部打印所在的方法, 可以传tools.LogCallerLevel(-2)
+	LogLine       LogLineLevel   // 默认为LogLineLevel(0), 代表请求位置的行号,如果想看tools内部的打印所在的行, 可以传tools.LogLineLevel(-2)
 	Timeout       time.Duration  // 为0会忽略
 	UnmarshalPath []interface{}  // 仅当obj参数不为nil时有效, eg:[]interface{}{"a",0,"b"}, 将会解析a下面的第1个元素的b节点
 	contentType   string         // default: "application/json" , post only
@@ -205,7 +205,7 @@ func request(obj interface{}, config *httpConfig) error {
 
 	request, err := http.NewRequest(config.Method, config.URL, config.Body)
 	if err != nil {
-		Logln(shouldLogError, callerLevel, lineLevel, err)
+		Error(shouldLogError, callerLevel, lineLevel, err)
 		return err
 	}
 
@@ -224,7 +224,7 @@ func request(obj interface{}, config *httpConfig) error {
 
 	response, err := client.Do(request)
 	if err != nil {
-		Logln(shouldLogError, callerLevel, lineLevel, err)
+		Error(shouldLogError, callerLevel, lineLevel, err)
 		return err
 	}
 
@@ -236,7 +236,7 @@ func request(obj interface{}, config *httpConfig) error {
 	result, err := io.ReadAll(response.Body)
 	defer response.Body.Close()
 	if err != nil {
-		Logln(shouldLogError, callerLevel, lineLevel, err)
+		Error(shouldLogError, callerLevel, lineLevel, err)
 		return err
 	}
 
@@ -249,7 +249,7 @@ func request(obj interface{}, config *httpConfig) error {
 		}
 		err = jsoniter.Unmarshal(result, &obj)
 		if err != nil {
-			Logln(shouldLogError, callerLevel, lineLevel, err)
+			Error(shouldLogError, callerLevel, lineLevel, err)
 			return err
 		}
 		Logln(LogCondition(config.Log&NetLogObj != 0), callerLevel, lineLevel, obj)
