@@ -16,6 +16,9 @@ import (
 )
 
 func TestLog(t *testing.T) {
+	SetBaseFormat(func(timeStr string, level string, funcName string, line int) (format string, args []interface{}) {
+		return "%s===%s===%s===%d===> ", []interface{}{timeStr, level, funcName, line}
+	})
 	func() {
 		Logln()
 		Logln(nil, "test", 1)
@@ -23,12 +26,11 @@ func TestLog(t *testing.T) {
 		Logln(LogCondition(false), "false") // 不打印
 		Logln(LogCallerLevel(0), 0)
 		Logln(LogCallerLevel(1), LogLineLevel(0), 1)
-		Logln(nil, LogLineLevel(1), "true 1", LogCallerLevel(0), []int{1, 2, 3}, LogCondition(true)) // All
+		Logln(nil, LogLineLevel(1), "true 1", LogCallerLevel(1), []int{1, 2, 3}, LogCondition(true)) // All
 		Logln(LogCondition(false), LogCallerLevel(1), "false 1")                                     // 不打印
 		Logln(time.Now())
 		fmt.Println(time.Now())
 	}()
-
 }
 
 func TestLogf(t *testing.T) {

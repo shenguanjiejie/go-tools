@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
+	"runtime/debug"
 	"time"
 )
 
@@ -11,7 +12,7 @@ import (
 LogCondition & LogCallerLevel & LogLineLevel
 1. 仅用来配置打印的条件, 这几个参数在log之前会被移除, 不会打印出来.
 2. 不限制放在参数中的位置, 不过建议Condition放在最前面
-3. go-tools是一个轻量级的工具库, 本身没有实现对LogLevel的支持. 如果有LogLevel的需求, 可以集成其他logger(调用SetLogger方法设置). 前提是要支持下方定义的Logger接口.
+3. go-tools支持集成其他logger(调用SetLogger方法设置). 前提是要支持下方定义的Logger接口.
 
 eg: tools.Logln(LogCondition(true),LogCallerLevel(1), LogLevelError,"err_msg", nil, []int{1,2,3})
 */
@@ -31,14 +32,13 @@ type LogLineLevel int
 
 var lineLevelType = reflect.TypeOf(LogLineLevel(0))
 
-type logLevel int
+type logLevel string
 
-// 如果集成了其他实现了Logger接口的logger, 可以把级别作为参数传入, 默认为LogLevelInfo
 const (
-	logLevelInfo logLevel = iota
-	logLevelDebug
-	logLevelWarn
-	logLevelError
+	logLevelInfo  logLevel = "info"
+	logLevelDebug logLevel = "debug"
+	logLevelWarn  logLevel = "warn"
+	logLevelError logLevel = "error"
 )
 
 var logLevelType = reflect.TypeOf(logLevelInfo)
@@ -46,7 +46,7 @@ var logLevelType = reflect.TypeOf(logLevelInfo)
 // 调用SetLogger方法设置logger
 var logger Logger
 
-var baseLogBlock func(timeStr string, funcName string, line int) (format string, args []interface{})
+var baseLogBlock func(timeStr string, level string, funcName string, line int) (format string, args []interface{})
 
 type Logger interface {
 	Debugf(format string, args ...interface{})
@@ -59,73 +59,29 @@ type Logger interface {
 }
 
 // Log 带行号输出
-func Log(a ...interface{}) {
-	condition, newA, pc, codeLine, ok, logLevel := logStackInfo(a...)
-
-	if !condition {
-		return
-	}
-
-	if !ok {
-		fmt.Print(newA...)
-		return
-	}
-
-	format, slice := formatWithValues(pc, codeLine, logFormat(newA), newA...)
-
-	if logger == nil {
-		fmt.Printf(format, slice...)
-	} else {
-		logLevelLog(logLevel, format, slice...)
-	}
+func Log(args ...interface{}) {
+	log("", false, func() {
+		fmt.Print(args...)
+	}, args...)
 }
 
 // Logln 带行号换行输出
-func Logln(a ...interface{}) {
-	condition, newA, pc, codeLine, ok, logLevel := logStackInfo(a...)
-
-	if !condition {
-		return
-	}
-
-	if !ok {
-		fmt.Println(newA...)
-		return
-	}
-
-	format, slice := formatWithValues(pc, codeLine, logFormat(newA), newA...)
-
-	if logger == nil {
-		fmt.Printf(format+"\n", slice...)
-	} else {
-		logLevelLog(logLevel, format, slice...)
-	}
+func Logln(args ...interface{}) {
+	log("", true, func() {
+		fmt.Println(args...)
+	}, args...)
 }
 
 // Logf 带行号格式输出
-func Logf(format string, a ...interface{}) {
-	condition, newA, pc, codeLine, ok, logLevel := logStackInfo(a...)
-
-	if !condition {
-		return
-	}
-
-	if !ok {
-		fmt.Printf(format, newA...)
-		return
-	}
-
-	finalFormat, slice := formatWithValues(pc, codeLine, format, newA...)
-	if logger == nil {
-		fmt.Printf(finalFormat, slice...)
-	} else {
-		logLevelLog(logLevel, finalFormat, slice...)
-	}
+func Logf(format string, args ...interface{}) {
+	log(format, false, func() {
+		fmt.Printf(format, args...)
+	}, args...)
 }
 
-func logStackInfo(a ...interface{}) (condition bool, newA []interface{}, pc uintptr, line int, ok bool, level logLevel) {
-	newA = a
-	currentLevel := 2
+func logStackInfo(args ...interface{}) (condition bool, newA []interface{}, pc uintptr, line int, ok bool, level logLevel) {
+	newA = args
+	currentLevel := 3
 	condition = true
 	level = logLevelInfo
 
@@ -155,7 +111,7 @@ func logStackInfo(a ...interface{}) (condition bool, newA []interface{}, pc uint
 			} else {
 				_, _, line, _ = runtime.Caller(lineLevelInt + currentLevel)
 			}
-		} else if condition && logger != nil && objType == logLevelType {
+		} else if condition && objType == logLevelType {
 			level = obj.(logLevel)
 		}
 
@@ -169,9 +125,9 @@ func logStackInfo(a ...interface{}) (condition bool, newA []interface{}, pc uint
 	return
 }
 
-func logFormat(a ...interface{}) string {
+func logFormat(args ...interface{}) string {
 	formatStr := ""
-	dataArr, ok := a[0].([]interface{})
+	dataArr, ok := args[0].([]interface{})
 	if !ok {
 		formatStr += "%v, "
 	}
@@ -187,16 +143,16 @@ func logFormat(a ...interface{}) string {
 	return formatStr
 }
 
-func formatWithValues(pc uintptr, codeLine int, format string, a ...interface{}) (string, []interface{}) {
+func formatWithValues(pc uintptr, level logLevel, codeLine int, format string, args ...interface{}) (string, []interface{}) {
 	funName := runtime.FuncForPC(pc).Name()
 	timeStr := time.Now().Format("2006-01-02 15:04:05")
-	baseFormat := "%s__%s__第%d行__: "
-	slice := []interface{}{timeStr, funName, codeLine}
+	baseFormat := "%s__%s__%s__第%d行__: "
+	slice := []interface{}{timeStr, level, funName, codeLine}
 
 	if baseLogBlock != nil {
-		baseFormat, slice = baseLogBlock(timeStr, funName, codeLine)
+		baseFormat, slice = baseLogBlock(timeStr, string(level), funName, codeLine)
 	}
-	slice = append(slice, a...)
+	slice = append(slice, args...)
 	return baseFormat + format, slice
 }
 
@@ -204,51 +160,98 @@ func SetLogger(yourLogger Logger) {
 	logger = yourLogger
 }
 
-func SetBaseFormat(block func(timeStr string, funcName string, line int) (format string, args []interface{})) {
+// 设置基本信息相关format格式, 默认为: "%s__%s__%s__第%d行__: " 和 []interface{}{timeStr, level, funName, codeLine}
+func SetBaseFormat(block func(timeStr string, level string, funcName string, line int) (format string, args []interface{})) {
 	baseLogBlock = block
 }
 
-func logLevelLog(level logLevel, format string, slice ...interface{}) {
+func log(format string, ln bool, ifErr func(), a ...interface{}) {
+
+	condition, newA, pc, codeLine, ok, level := logStackInfo(a...)
+
+	if !condition {
+		return
+	}
+
+	if !ok {
+		ifErr()
+		return
+	}
+
+	if format == "" {
+		format = logFormat(newA) + format
+	}
+
+	if ln {
+		format = format + "\n"
+	}
+
+	finalFormat, slice := formatWithValues(pc, level, codeLine, format, newA...)
+
+	if logger == nil {
+		fmt.Printf(finalFormat, slice...)
+		if level == logLevelError {
+			debug.PrintStack()
+		}
+		return
+	}
+
 	switch level {
 	case logLevelInfo:
-		logger.Infof(format, slice...)
+		logger.Infof(finalFormat, slice...)
 	case logLevelDebug:
-		logger.Debugf(format, slice...)
+		logger.Debugf(finalFormat, slice...)
 	case logLevelWarn:
-		logger.Warnf(format, slice...)
+		logger.Warnf(finalFormat, slice...)
 	case logLevelError:
-		logger.Errorf(format, slice...)
+		logger.Errorf(finalFormat, slice...)
 	}
 }
 
 func Debug(args ...interface{}) {
-	Logln(append(args, logLevelDebug)...)
+	log("", true, func() {
+		fmt.Println(args...)
+	}, append(args, logLevelDebug)...)
 }
 
 func Info(args ...interface{}) {
-	Logln(append(args, logLevelInfo)...)
+	log("", true, func() {
+		fmt.Println(args...)
+	}, append(args, logLevelInfo)...)
 }
 
 func Warn(args ...interface{}) {
-	Logln(append(args, logLevelWarn)...)
+	log("", true, func() {
+		fmt.Println(args...)
+	}, append(args, logLevelWarn)...)
 }
 
 func Error(args ...interface{}) {
-	Logln(append(args, logLevelError)...)
+	log("", true, func() {
+		fmt.Println(args...)
+	}, append(args, logLevelError)...)
 }
 
 func Debugf(template string, args ...interface{}) {
-	Logf(template, append(args, logLevelDebug)...)
+	log(template, false, func() {
+		fmt.Printf(template, args...)
+	}, append(args, logLevelDebug)...)
 }
 
 func Infof(template string, args ...interface{}) {
-	Logf(template, append(args, logLevelInfo)...)
+	log(template, false, func() {
+		fmt.Printf(template, args...)
+	}, append(args, logLevelInfo)...)
 }
 
 func Warnf(template string, args ...interface{}) {
-	Logf(template, append(args, logLevelWarn)...)
+	log(template, false, func() {
+		fmt.Printf(template, args...)
+	}, append(args, logLevelWarn)...)
 }
 
 func Errorf(template string, args ...interface{}) {
-	Logf(template, append(args, logLevelError)...)
+	log(template, false, func() {
+		fmt.Printf(template, args...)
+	}, append(args, logLevelError)...)
 }
