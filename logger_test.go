@@ -24,10 +24,10 @@ func TestLog(t *testing.T) {
 		Logln(nil, "test", 1)
 		Logln(LogCondition(true), "true")
 		Logln(LogCondition(false), "false") // 不打印
-		Logln(LogCallerLevel(0), 0)
-		Logln(LogCallerLevel(1), LogLineLevel(0), 1)
-		Logln(nil, LogLineLevel(1), "true 1", LogCallerLevel(1), []int{1, 2, 3}, LogCondition(true)) // All
-		Logln(LogCondition(false), LogCallerLevel(1), "false 1")                                     // 不打印
+		Logln(LogCallerSkip(0), 0)
+		Logln(LogCallerSkip(1), LogLineSkip(0), 1)
+		Logln(nil, LogLineSkip(1), "true 1", LogCallerSkip(1), []int{1, 2, 3}, LogCondition(true)) // All
+		Logln(LogCondition(false), LogCallerSkip(1), "false 1")                                    // 不打印
 		Logln(time.Now())
 		fmt.Println(time.Now())
 	}()

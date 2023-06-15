@@ -1,4 +1,4 @@
-module github.com/shenguanjiejie/go-tools/v2
+module github.com/shenguanjiejie/go-tools/v3
 
 go 1.18
 

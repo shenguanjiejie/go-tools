@@ -33,32 +33,29 @@ const (
 	NetLogAll           = NetLogAllWithoutObj | NetLogObj
 )
 
-// HttpConfig 额外配置, 未进行配置的项, 会使用默认值
-type HttpConfig struct {
+// HTTPConfig 额外配置, 未进行配置的项, 会使用默认值
+type HTTPConfig struct {
 	Header        http.Header
-	Log           NetLogLevel    // default: NetLogAll
-	LogCaller     LogCallerLevel // 默认为LogCallerLevel(0), 代表请求位置的方法,如果想看tools内部打印所在的方法, 可以传tools.LogCallerLevel(-2)
-	LogLine       LogLineLevel   // 默认为LogLineLevel(0), 代表请求位置的行号,如果想看tools内部的打印所在的行, 可以传tools.LogLineLevel(-2)
-	Timeout       time.Duration  // 为0会忽略
-	UnmarshalPath []interface{}  // 仅当obj参数不为nil时有效, eg:[]interface{}{"a",0,"b"}, 将会解析a下面的第1个元素的b节点
-	contentType   string         // default: "application/json" , post only
+	NetLogLevel   NetLogLevel   // default: NetLogAll
+	LogCallerSkip LogCallerSkip // 默认为LogCallerSkip(0), 代表请求位置的方法所跳过的层数,如果想看tools内部打印所在的方法, 可以传tools.LogCallerSkip(-2) TODO: zap中用callerSkip
+	LogLineSkip   LogLineSkip   // 默认为LogLineSkip(0), 代表请求位置的行号所跳过的层数,如果想看tools内部的打印所在的行, 可以传tools.LogLineSkip(-2)
+	Timeout       time.Duration // 为0会忽略
+	UnmarshalPath []interface{} // 仅当obj参数不为nil时有效, eg:[]interface{}{"a",0,"b"}, 将会解析a下面的第1个元素的b节点
+	contentType   string        // default: "application/json" , post only
 }
 
 type httpConfig struct {
-	HttpConfig
+	HTTPConfig
 	Method string
 	URL    string
 	Params interface{}
 	Body   io.Reader
 }
 
-var defaultConfig = &httpConfig{HttpConfig: HttpConfig{Log: NetLogAllWithoutObj}}
+var defaultConfig = &httpConfig{HTTPConfig: HTTPConfig{NetLogLevel: NetLogAllWithoutObj}}
 
-/*
-*HttpGet
-@param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
-*/
-func HttpGet(urlStr string, values url.Values, obj interface{}, config ...*HttpConfig) error {
+// Get obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
+func Get(urlStr string, values url.Values, obj interface{}, config ...*HTTPConfig) error {
 	url := urlStr
 	iconfig := configWithParams(config...)
 	if values != nil {
@@ -72,11 +69,8 @@ func HttpGet(urlStr string, values url.Values, obj interface{}, config ...*HttpC
 	return err
 }
 
-/*
-* HttpDelete
-@param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
-*/
-func HttpDelete(urlStr string, values url.Values, obj interface{}, config ...*HttpConfig) error {
+// Delete obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
+func Delete(urlStr string, values url.Values, obj interface{}, config ...*HTTPConfig) error {
 	url := urlStr
 	iconfig := configWithParams(config...)
 	if values != nil {
@@ -90,7 +84,7 @@ func HttpDelete(urlStr string, values url.Values, obj interface{}, config ...*Ht
 	return err
 }
 
-func requestWithData(method string, url string, data interface{}, obj interface{}, config ...*HttpConfig) error {
+func requestWithData(method string, url string, data interface{}, obj interface{}, config ...*HTTPConfig) error {
 	iconfig := configWithParams(config...)
 	jsonParams, _ := json.Marshal(data)
 
@@ -106,19 +100,13 @@ func requestWithData(method string, url string, data interface{}, obj interface{
 	return err
 }
 
-/*
-* HttpPost
-@param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
-*/
-func HttpPost(url string, data interface{}, obj interface{}, config ...*HttpConfig) error {
+// Post obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
+func Post(url string, data interface{}, obj interface{}, config ...*HTTPConfig) error {
 	return requestWithData(http.MethodPost, url, data, obj, config...)
 }
 
-/*
-* HttpFormDataPost
-@param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
-*/
-func HttpFormDataPost(url string, data map[string]string, obj interface{}, config ...*HttpConfig) error {
+// FormDataPost obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
+func FormDataPost(url string, data map[string]string, obj interface{}, config ...*HTTPConfig) error {
 	cmdResReqForm, contentType := createMultipartFormBody(data)
 	iconfig := configWithParams(config...)
 
@@ -169,39 +157,33 @@ func createMultipartFormBody(params map[string]string) (*bytes.Buffer, string) {
 	return body, w.FormDataContentType()
 }
 
-/*
-* HttpPut
-@param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
-*/
-func HttpPut(url string, data interface{}, obj interface{}, config ...*HttpConfig) error {
+// Put obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
+func Put(url string, data interface{}, obj interface{}, config ...*HTTPConfig) error {
 	return requestWithData(http.MethodPut, url, data, obj, config...)
 }
 
-/*
-* HttpPatch
-@param obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
-*/
-func HttpPatch(url string, data interface{}, obj interface{}, config ...*HttpConfig) error {
+// Patch obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
+func Patch(url string, data interface{}, obj interface{}, config ...*HTTPConfig) error {
 	return requestWithData(http.MethodPatch, url, data, obj, config...)
 }
 
-func configWithParams(config ...*HttpConfig) *httpConfig {
+func configWithParams(config ...*HTTPConfig) *httpConfig {
 	if len(config) > 0 {
-		return &httpConfig{HttpConfig: *config[0]}
+		return &httpConfig{HTTPConfig: *config[0]}
 	}
 	return defaultConfig
 }
 
 func request(obj interface{}, config *httpConfig) error {
 	client := http.DefaultClient
-	if config.Log == NetLogNil {
-		config.Log = NetLogAll
+	if config.NetLogLevel == NetLogNil {
+		config.NetLogLevel = NetLogAll
 	}
-	shouldLogError := LogCondition(config.Log&NetLogError != 0)
-	callerLevel := config.LogCaller + 2
-	lineLevel := config.LogLine + 2
-	Logln(LogCondition(config.Log&NetLogURL != 0), callerLevel, lineLevel, config.Method, config.URL)
-	Logln(LogCondition(config.Log&NetLogParams != 0), callerLevel, lineLevel, config.Params)
+	shouldLogError := LogCondition(config.NetLogLevel&NetLogError != 0)
+	callerLevel := config.LogCallerSkip + 2
+	lineLevel := config.LogLineSkip + 2
+	Logln(LogCondition(config.NetLogLevel&NetLogURL != 0), callerLevel, lineLevel, config.Method, config.URL)
+	Logln(LogCondition(config.NetLogLevel&NetLogParams != 0), callerLevel, lineLevel, config.Params)
 
 	request, err := http.NewRequest(config.Method, config.URL, config.Body)
 	if err != nil {
@@ -230,7 +212,7 @@ func request(obj interface{}, config *httpConfig) error {
 
 	if obj != nil && reflect.TypeOf(obj) == reflect.TypeOf(response) {
 		*(obj.(*http.Response)) = *response
-		Logln(LogCondition(config.Log&NetLogResponse != 0), callerLevel, lineLevel, obj)
+		Logln(LogCondition(config.NetLogLevel&NetLogResponse != 0), callerLevel, lineLevel, obj)
 		return nil
 	}
 	result, err := io.ReadAll(response.Body)
@@ -240,7 +222,7 @@ func request(obj interface{}, config *httpConfig) error {
 		return err
 	}
 
-	Logln(LogCondition(config.Log&NetLogResponse != 0), callerLevel, lineLevel, string(result))
+	Logln(LogCondition(config.NetLogLevel&NetLogResponse != 0), callerLevel, lineLevel, string(result))
 
 	if obj != nil {
 		if len(config.UnmarshalPath) > 0 {
@@ -252,7 +234,7 @@ func request(obj interface{}, config *httpConfig) error {
 			Error(shouldLogError, callerLevel, lineLevel, err)
 			return err
 		}
-		Logln(LogCondition(config.Log&NetLogObj != 0), callerLevel, lineLevel, obj)
+		Logln(LogCondition(config.NetLogLevel&NetLogObj != 0), callerLevel, lineLevel, obj)
 	}
 
 	return nil

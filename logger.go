@@ -9,12 +9,12 @@ import (
 )
 
 /**
-LogCondition & LogCallerLevel & LogLineLevel
+LogCondition & LogCallerSkip & LogLineSkip
 1. 仅用来配置打印的条件, 这几个参数在log之前会被移除, 不会打印出来.
 2. 不限制放在参数中的位置, 不过建议Condition放在最前面
 3. go-tools支持集成其他logger(调用SetLogger方法设置). 前提是要支持下方定义的Logger接口.
 
-eg: tools.Logln(LogCondition(true),LogCallerLevel(1), LogLevelError,"err_msg", nil, []int{1,2,3})
+eg: tools.Logln(LogCondition(true),LogCallerSkip(1), LogLevelError,"err_msg", nil, []int{1,2,3})
 */
 
 // 条件打印
@@ -23,14 +23,14 @@ type LogCondition bool
 var conditionType = reflect.TypeOf(LogCondition(true))
 
 // 输出的方法名的层级, 默认为0, 代表输出当前方法名, 如果要输出上层方法名(比如闭包内打印), 则该参数设置为CallerLevel(1)即可, 以此类推.
-type LogCallerLevel int
+type LogCallerSkip int
 
-var callerLevelType = reflect.TypeOf(LogCallerLevel(0))
+var callerLevelType = reflect.TypeOf(LogCallerSkip(0))
 
 // 输出的行号的层级, 默认为0, 代表输出当前所在代码块的行号, 如果要输出上层代码块的行号(比如闭包内打印), 则该参数设置为LineLevel(1)即可, 以此类推.
-type LogLineLevel int
+type LogLineSkip int
 
-var lineLevelType = reflect.TypeOf(LogLineLevel(0))
+var lineLevelType = reflect.TypeOf(LogLineSkip(0))
 
 type logLevel string
 
@@ -97,7 +97,7 @@ func logStackInfo(args ...interface{}) (condition bool, newA []interface{}, pc u
 				condition = false
 			}
 		} else if condition && objType == callerLevelType {
-			callerLevelInt := int(obj.(LogCallerLevel))
+			callerLevelInt := int(obj.(LogCallerSkip))
 			if line == 0 {
 				pc, _, line, ok = runtime.Caller(callerLevelInt + currentLevel)
 			} else {
@@ -105,7 +105,7 @@ func logStackInfo(args ...interface{}) (condition bool, newA []interface{}, pc u
 			}
 
 		} else if condition && objType == lineLevelType {
-			lineLevelInt := int(obj.(LogLineLevel))
+			lineLevelInt := int(obj.(LogLineSkip))
 			if pc == 0 {
 				pc, _, line, _ = runtime.Caller(lineLevelInt + currentLevel)
 			} else {
