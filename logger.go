@@ -8,16 +8,12 @@ import (
 	"time"
 )
 
-type logLevel string
-
 const (
-	logLevelInfo  logLevel = "info"
-	logLevelDebug logLevel = "debug"
-	logLevelWarn  logLevel = "warn"
-	logLevelError logLevel = "error"
+	logLevelInfo  = "info"
+	logLevelDebug = "debug"
+	logLevelWarn  = "warn"
+	logLevelError = "error"
 )
-
-var logLevelType = reflect.TypeOf(logLevelInfo)
 
 // 调用SetLogger方法设置logger
 var logger Logger
@@ -56,25 +52,23 @@ func Logf(format string, args ...interface{}) {
 	}, args...)
 }
 
-func logStackInfo(args ...interface{}) (condition bool, newA []interface{}, pc uintptr, line int, ok bool, level logLevel) {
+func logStackInfo(args ...interface{}) (condition bool, newA []interface{}, pc uintptr, line int, ok bool, logLevel string) {
 	newA = args
 	currentSkip := 3
 	condition = true
-	level = logLevelInfo
 	o := new(logOptions)
+	o.logLevel = logLevelInfo
 	o.LogCondition = &condition
 
 	for i := 0; i < len(newA); i++ {
 		obj := newA[i]
 		objType := reflect.TypeOf(obj)
 		// 不是logger用来做判定的类型
-		if obj == nil || (objType != logOptionType && objType != logLevelType) {
+		if obj == nil || objType != logOptionType {
 			continue
 		}
 
-		if objType == logOptionType {
-			obj.(LogOptionFunc)(o)
-		}
+		obj.(LogOptionFunc)(o)
 
 		if *o.LogCondition {
 			if o.LogCallerSkip > 0 && pc == 0 {
@@ -89,8 +83,6 @@ func logStackInfo(args ...interface{}) (condition bool, newA []interface{}, pc u
 				} else {
 					_, _, line, _ = runtime.Caller(o.LogLineSkip + currentSkip)
 				}
-			} else if objType == logLevelType {
-				level = obj.(logLevel)
 			}
 		}
 
@@ -99,6 +91,7 @@ func logStackInfo(args ...interface{}) (condition bool, newA []interface{}, pc u
 	}
 
 	condition = *o.LogCondition
+	logLevel = o.logLevel
 	if condition && pc == 0 && line == 0 {
 		pc, _, line, ok = runtime.Caller(currentSkip)
 	}
@@ -123,14 +116,14 @@ func logFormat(args ...interface{}) string {
 	return formatStr
 }
 
-func formatWithValues(pc uintptr, level logLevel, codeLine int, format string, args ...interface{}) (string, []interface{}) {
+func formatWithValues(pc uintptr, level string, codeLine int, format string, args ...interface{}) (string, []interface{}) {
 	funName := runtime.FuncForPC(pc).Name()
 	timeStr := time.Now().Format("2006-01-02 15:04:05")
 	baseFormat := "%s__%s__%s__第%d行__: "
 	slice := []interface{}{timeStr, level, funName, codeLine}
 
 	if baseLogBlock != nil {
-		baseFormat, slice = baseLogBlock(timeStr, string(level), funName, codeLine)
+		baseFormat, slice = baseLogBlock(timeStr, level, funName, codeLine)
 	}
 	slice = append(slice, args...)
 	return baseFormat + format, slice
@@ -193,54 +186,54 @@ func log(format string, ln bool, ifErr func(), a ...interface{}) {
 func Debug(args ...interface{}) {
 	log("", true, func() {
 		fmt.Println(args...)
-	}, append(args, logLevelDebug)...)
+	}, append(args, logLevel(logLevelDebug))...)
 }
 
 // Info info
 func Info(args ...interface{}) {
 	log("", true, func() {
 		fmt.Println(args...)
-	}, append(args, logLevelInfo)...)
+	}, append(args, logLevel(logLevelInfo))...)
 }
 
 // Warn warn
 func Warn(args ...interface{}) {
 	log("", true, func() {
 		fmt.Println(args...)
-	}, append(args, logLevelWarn)...)
+	}, append(args, logLevel(logLevelWarn))...)
 }
 
 // Error error
 func Error(args ...interface{}) {
 	log("", true, func() {
 		fmt.Println(args...)
-	}, append(args, logLevelError)...)
+	}, append(args, logLevel(logLevelError))...)
 }
 
 // Debugf debug with template
 func Debugf(template string, args ...interface{}) {
 	log(template, false, func() {
 		fmt.Printf(template, args...)
-	}, append(args, logLevelDebug)...)
+	}, append(args, logLevel(logLevelDebug))...)
 }
 
 // Infof info with template
 func Infof(template string, args ...interface{}) {
 	log(template, false, func() {
 		fmt.Printf(template, args...)
-	}, append(args, logLevelInfo)...)
+	}, append(args, logLevel(logLevelInfo))...)
 }
 
 // Warnf warn with template
 func Warnf(template string, args ...interface{}) {
 	log(template, false, func() {
 		fmt.Printf(template, args...)
-	}, append(args, logLevelWarn)...)
+	}, append(args, logLevel(logLevelWarn))...)
 }
 
 // Errorf error with template
 func Errorf(template string, args ...interface{}) {
 	log(template, false, func() {
 		fmt.Printf(template, args...)
-	}, append(args, logLevelError)...)
+	}, append(args, logLevel(logLevelError))...)
 }
