@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"reflect"
-	"time"
 
 	jsoniter "github.com/json-iterator/go"
 )
@@ -33,31 +32,20 @@ const (
 	NetLogAll           = NetLogAllWithoutObj | NetLogObj
 )
 
-// HTTPConfig 额外配置, 未进行配置的项, 会使用默认值
-type HTTPConfig struct {
-	Header        http.Header
-	NetLogLevel   NetLogLevel   // default: NetLogAll
-	LogCallerSkip LogCallerSkip // 默认为LogCallerSkip(0), 代表请求位置的方法所跳过的层数,如果想看tools内部打印所在的方法, 可以传tools.LogCallerSkip(-2) TODO: zap中用callerSkip
-	LogLineSkip   LogLineSkip   // 默认为LogLineSkip(0), 代表请求位置的行号所跳过的层数,如果想看tools内部的打印所在的行, 可以传tools.LogLineSkip(-2)
-	Timeout       time.Duration // 为0会忽略
-	UnmarshalPath []interface{} // 仅当obj参数不为nil时有效, eg:[]interface{}{"a",0,"b"}, 将会解析a下面的第1个元素的b节点
-	contentType   string        // default: "application/json" , post only
-}
-
 type httpConfig struct {
-	HTTPConfig
+	NetOptions
 	Method string
 	URL    string
 	Params interface{}
 	Body   io.Reader
 }
 
-var defaultConfig = &httpConfig{HTTPConfig: HTTPConfig{NetLogLevel: NetLogAllWithoutObj}}
+var defaultConfig = &httpConfig{NetOptions: NetOptions{NetLogLevel: NetLogAllWithoutObj}}
 
 // Get obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
-func Get(urlStr string, values url.Values, obj interface{}, config ...*HTTPConfig) error {
+func Get(urlStr string, values url.Values, obj interface{}, opions ...NetOptionFunc) error {
 	url := urlStr
-	iconfig := configWithParams(config...)
+	iconfig := configWithOptions(opions...)
 	if values != nil {
 		url = fmt.Sprintf("%s?%s", urlStr, values.Encode())
 	}
@@ -70,9 +58,9 @@ func Get(urlStr string, values url.Values, obj interface{}, config ...*HTTPConfi
 }
 
 // Delete obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
-func Delete(urlStr string, values url.Values, obj interface{}, config ...*HTTPConfig) error {
+func Delete(urlStr string, values url.Values, obj interface{}, opions ...NetOptionFunc) error {
 	url := urlStr
-	iconfig := configWithParams(config...)
+	iconfig := configWithOptions(opions...)
 	if values != nil {
 		url = fmt.Sprintf("%s?%s", urlStr, values.Encode())
 	}
@@ -84,12 +72,12 @@ func Delete(urlStr string, values url.Values, obj interface{}, config ...*HTTPCo
 	return err
 }
 
-func requestWithData(method string, url string, data interface{}, obj interface{}, config ...*HTTPConfig) error {
-	iconfig := configWithParams(config...)
+func requestWithData(method string, url string, data interface{}, obj interface{}, options ...NetOptionFunc) error {
+	iconfig := configWithOptions(options...)
 	jsonParams, _ := json.Marshal(data)
 
 	iconfig.URL = url
-	iconfig.Method = http.MethodPost
+	iconfig.Method = method
 	iconfig.Body = bytes.NewBuffer(jsonParams)
 	iconfig.Params = data
 	if iconfig.contentType == "" {
@@ -101,14 +89,14 @@ func requestWithData(method string, url string, data interface{}, obj interface{
 }
 
 // Post obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
-func Post(url string, data interface{}, obj interface{}, config ...*HTTPConfig) error {
+func Post(url string, data interface{}, obj interface{}, config ...NetOptionFunc) error {
 	return requestWithData(http.MethodPost, url, data, obj, config...)
 }
 
 // FormDataPost obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
-func FormDataPost(url string, data map[string]string, obj interface{}, config ...*HTTPConfig) error {
+func FormDataPost(url string, data map[string]string, obj interface{}, options ...NetOptionFunc) error {
 	cmdResReqForm, contentType := createMultipartFormBody(data)
-	iconfig := configWithParams(config...)
+	iconfig := configWithOptions(options...)
 
 	iconfig.URL = url
 	iconfig.Method = http.MethodPost
@@ -158,18 +146,22 @@ func createMultipartFormBody(params map[string]string) (*bytes.Buffer, string) {
 }
 
 // Put obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
-func Put(url string, data interface{}, obj interface{}, config ...*HTTPConfig) error {
-	return requestWithData(http.MethodPut, url, data, obj, config...)
+func Put(url string, data interface{}, obj interface{}, options ...NetOptionFunc) error {
+	return requestWithData(http.MethodPut, url, data, obj, options...)
 }
 
 // Patch obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
-func Patch(url string, data interface{}, obj interface{}, config ...*HTTPConfig) error {
-	return requestWithData(http.MethodPatch, url, data, obj, config...)
+func Patch(url string, data interface{}, obj interface{}, options ...NetOptionFunc) error {
+	return requestWithData(http.MethodPatch, url, data, obj, options...)
 }
 
-func configWithParams(config ...*HTTPConfig) *httpConfig {
-	if len(config) > 0 {
-		return &httpConfig{HTTPConfig: *config[0]}
+func configWithOptions(opions ...NetOptionFunc) *httpConfig {
+	if len(opions) > 0 {
+		config := new(NetOptions)
+		for _, option := range opions {
+			option(config)
+		}
+		return &httpConfig{NetOptions: *config}
 	}
 	return defaultConfig
 }

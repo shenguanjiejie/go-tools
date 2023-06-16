@@ -103,7 +103,7 @@ var isOnline = true
 // InternetCheck 网络检测是否在线
 func InternetCheck(netLogLevel NetLogLevel, switchAction ...func(isOnline bool)) bool {
 	res := new(http.Response)
-	err := Get("http://connect.rom.miui.com/generate_204", nil, res, &HTTPConfig{NetLogLevel: netLogLevel})
+	err := Get("http://connect.rom.miui.com/generate_204", nil, res, NetLogLevelOption(netLogLevel))
 
 	if err != nil || res.StatusCode != 204 {
 		Logln(LogCondition(err != nil), err)

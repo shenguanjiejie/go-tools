@@ -21,11 +21,11 @@ type User struct {
 
 func TestHttpGet(t *testing.T) {
 	user := new(User)
-	Get("https://jsonplaceholder.typicode.com/posts/1", nil, nil, &HTTPConfig{NetLogLevel: NetLogNone})
-	Get("https://jsonplaceholder.typicode.com/posts/1", nil, nil, &HTTPConfig{NetLogLevel: NetLogURL, LogCallerSkip: LogCallerSkip(-2), LogLineSkip: LogLineSkip(-2)})
-	Get("https://jsonplaceholder.typicode.com/posts/1", nil, nil, &HTTPConfig{NetLogLevel: NetLogURL | NetLogParams})
-	Get("https://jsonplaceholder.typicode.com/posts/1", nil, nil, &HTTPConfig{NetLogLevel: NetLogAll})
-	Get("https://jsonplaceholder.typicode.com/posts/1", nil, user, &HTTPConfig{NetLogLevel: NetLogAll})
+	Get("https://jsonplaceholder.typicode.com/posts/1", nil, nil, NetLogLevelOption(NetLogNone))
+	Get("https://jsonplaceholder.typicode.com/posts/1", nil, nil, NetLogLevelOption(NetLogURL), LogCallerSkipOption(-2), LogLineSkipOption(-2))
+	Get("https://jsonplaceholder.typicode.com/posts/1", nil, nil, NetLogLevelOption(NetLogURL|NetLogParams))
+	Get("https://jsonplaceholder.typicode.com/posts/1", nil, nil, NetLogLevelOption(NetLogAll))
+	Get("https://jsonplaceholder.typicode.com/posts/1", nil, user)
 }
 
 func TestHttpPost(t *testing.T) {
@@ -44,7 +44,7 @@ func TestHttpPost(t *testing.T) {
 	// 	"title":  "title test",
 	// 	"body":   "body test",
 	// }
-	Post("https://jsonplaceholder.typicode.com/posts", user, newUser, &HTTPConfig{NetLogLevel: NetLogAll})
+	Post("https://jsonplaceholder.typicode.com/posts", user, newUser)
 }
 
 func TestHttpFormDataPost(t *testing.T) {
@@ -55,5 +55,5 @@ func TestHttpFormDataPost(t *testing.T) {
 		"title":  "title test",
 		"body":   "body test",
 	}
-	FormDataPost("https://jsonplaceholder.typicode.com/posts", params, user, &HTTPConfig{NetLogLevel: NetLogAll})
+	FormDataPost("https://jsonplaceholder.typicode.com/posts", params, user)
 }

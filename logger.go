@@ -8,30 +8,6 @@ import (
 	"time"
 )
 
-/**
-LogCondition & LogCallerSkip & LogLineSkip
-1. 仅用来配置打印的条件, 这几个参数在log之前会被移除, 不会打印出来.
-2. 不限制放在参数中的位置, 不过建议Condition放在最前面
-3. go-tools支持集成其他logger(调用SetLogger方法设置). 前提是要支持下方定义的Logger接口.
-
-eg: tools.Logln(LogCondition(true),LogCallerSkip(1), LogLevelError,"err_msg", nil, []int{1,2,3})
-*/
-
-// 条件打印
-type LogCondition bool
-
-var conditionType = reflect.TypeOf(LogCondition(true))
-
-// 输出的方法名的层级, 默认为0, 代表输出当前方法名, 如果要输出上层方法名(比如闭包内打印), 则该参数设置为CallerLevel(1)即可, 以此类推.
-type LogCallerSkip int
-
-var callerLevelType = reflect.TypeOf(LogCallerSkip(0))
-
-// 输出的行号的层级, 默认为0, 代表输出当前所在代码块的行号, 如果要输出上层代码块的行号(比如闭包内打印), 则该参数设置为LineLevel(1)即可, 以此类推.
-type LogLineSkip int
-
-var lineLevelType = reflect.TypeOf(LogLineSkip(0))
-
 type logLevel string
 
 const (
@@ -48,6 +24,7 @@ var logger Logger
 
 var baseLogBlock func(timeStr string, level string, funcName string, line int) (format string, args []interface{})
 
+// Logger go-tools支持集成其他logger(调用SetLogger方法设置). 前提是要支持下方定义的Logger接口.
 type Logger interface {
 	Debugf(format string, args ...interface{})
 
@@ -81,46 +58,49 @@ func Logf(format string, args ...interface{}) {
 
 func logStackInfo(args ...interface{}) (condition bool, newA []interface{}, pc uintptr, line int, ok bool, level logLevel) {
 	newA = args
-	currentLevel := 3
+	currentSkip := 3
 	condition = true
 	level = logLevelInfo
+	o := new(logOptions)
+	o.LogCondition = &condition
 
 	for i := 0; i < len(newA); i++ {
 		obj := newA[i]
-		// 不是logger用来做判定的类型
 		objType := reflect.TypeOf(obj)
-		if obj == nil || (objType != conditionType && objType != callerLevelType && objType != lineLevelType && objType != logLevelType) {
+		// 不是logger用来做判定的类型
+		if obj == nil || (objType != logOptionType && objType != logLevelType) {
 			continue
 		}
-		if objType == conditionType {
-			if !obj.(LogCondition) {
-				condition = false
-			}
-		} else if condition && objType == callerLevelType {
-			callerLevelInt := int(obj.(LogCallerSkip))
-			if line == 0 {
-				pc, _, line, ok = runtime.Caller(callerLevelInt + currentLevel)
-			} else {
-				pc, _, _, ok = runtime.Caller(callerLevelInt + currentLevel)
-			}
 
-		} else if condition && objType == lineLevelType {
-			lineLevelInt := int(obj.(LogLineSkip))
-			if pc == 0 {
-				pc, _, line, _ = runtime.Caller(lineLevelInt + currentLevel)
-			} else {
-				_, _, line, _ = runtime.Caller(lineLevelInt + currentLevel)
+		if objType == logOptionType {
+			obj.(LogOptionFunc)(o)
+		}
+
+		if *o.LogCondition {
+			if o.LogCallerSkip > 0 && pc == 0 {
+				if line == 0 {
+					pc, _, line, ok = runtime.Caller(o.LogCallerSkip + currentSkip)
+				} else {
+					pc, _, _, ok = runtime.Caller(o.LogCallerSkip + currentSkip)
+				}
+			} else if o.LogLineSkip > 0 && line == 0 {
+				if pc == 0 {
+					pc, _, line, _ = runtime.Caller(o.LogLineSkip + currentSkip)
+				} else {
+					_, _, line, _ = runtime.Caller(o.LogLineSkip + currentSkip)
+				}
+			} else if objType == logLevelType {
+				level = obj.(logLevel)
 			}
-		} else if condition && objType == logLevelType {
-			level = obj.(logLevel)
 		}
 
 		newA = append(newA[:i], newA[i+1:]...)
 		i--
 	}
 
+	condition = *o.LogCondition
 	if condition && pc == 0 && line == 0 {
-		pc, _, line, ok = runtime.Caller(currentLevel)
+		pc, _, line, ok = runtime.Caller(currentSkip)
 	}
 	return
 }
@@ -156,11 +136,12 @@ func formatWithValues(pc uintptr, level logLevel, codeLine int, format string, a
 	return baseFormat + format, slice
 }
 
+// SetLogger 设置日志输出实例
 func SetLogger(yourLogger Logger) {
 	logger = yourLogger
 }
 
-// 设置基本信息相关format格式, 默认为: "%s__%s__%s__第%d行__: " 和 []interface{}{timeStr, level, funName, codeLine}
+// SetBaseFormat 设置基本信息相关format格式, 默认为: "%s__%s__%s__第%d行__: " 和 []interface{}{timeStr, level, funName, codeLine}
 func SetBaseFormat(block func(timeStr string, level string, funcName string, line int) (format string, args []interface{})) {
 	baseLogBlock = block
 }
@@ -208,48 +189,56 @@ func log(format string, ln bool, ifErr func(), a ...interface{}) {
 	}
 }
 
+// Debug debug
 func Debug(args ...interface{}) {
 	log("", true, func() {
 		fmt.Println(args...)
 	}, append(args, logLevelDebug)...)
 }
 
+// Info info
 func Info(args ...interface{}) {
 	log("", true, func() {
 		fmt.Println(args...)
 	}, append(args, logLevelInfo)...)
 }
 
+// Warn warn
 func Warn(args ...interface{}) {
 	log("", true, func() {
 		fmt.Println(args...)
 	}, append(args, logLevelWarn)...)
 }
 
+// Error error
 func Error(args ...interface{}) {
 	log("", true, func() {
 		fmt.Println(args...)
 	}, append(args, logLevelError)...)
 }
 
+// Debugf debug with template
 func Debugf(template string, args ...interface{}) {
 	log(template, false, func() {
 		fmt.Printf(template, args...)
 	}, append(args, logLevelDebug)...)
 }
 
+// Infof info with template
 func Infof(template string, args ...interface{}) {
 	log(template, false, func() {
 		fmt.Printf(template, args...)
 	}, append(args, logLevelInfo)...)
 }
 
+// Warnf warn with template
 func Warnf(template string, args ...interface{}) {
 	log(template, false, func() {
 		fmt.Printf(template, args...)
 	}, append(args, logLevelWarn)...)
 }
 
+// Errorf error with template
 func Errorf(template string, args ...interface{}) {
 	log(template, false, func() {
 		fmt.Printf(template, args...)
