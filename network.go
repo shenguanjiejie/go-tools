@@ -33,14 +33,14 @@ const (
 )
 
 type httpConfig struct {
-	NetOptions
+	netOptions
 	Method string
 	URL    string
 	Params interface{}
 	Body   io.Reader
 }
 
-var defaultConfig = &httpConfig{NetOptions: NetOptions{NetLogLevel: NetLogAllWithoutObj}}
+var defaultConfig = &httpConfig{netOptions: netOptions{NetLogLevel: NetLogAllWithoutObj}}
 
 // Get obj : body所序列化的对象, 指针类型, 如果为*http.Response类型, 则直接返回*http.Response
 func Get(urlStr string, values url.Values, obj interface{}, opions ...NetOptionFunc) error {
@@ -157,11 +157,11 @@ func Patch(url string, data interface{}, obj interface{}, options ...NetOptionFu
 
 func configWithOptions(opions ...NetOptionFunc) *httpConfig {
 	if len(opions) > 0 {
-		config := new(NetOptions)
+		config := new(netOptions)
 		for _, option := range opions {
 			option(config)
 		}
-		return &httpConfig{NetOptions: *config}
+		return &httpConfig{netOptions: *config}
 	}
 	return defaultConfig
 }
@@ -172,8 +172,8 @@ func request(obj interface{}, config *httpConfig) error {
 		config.NetLogLevel = NetLogAll
 	}
 	shouldLogError := LogCondition(config.NetLogLevel&NetLogError != 0)
-	callerLevel := config.LogCallerSkip + 2
-	lineLevel := config.LogLineSkip + 2
+	callerLevel := LogCallerSkip(config.LogCallerSkip + 2)
+	lineLevel := LogLineSkip(config.LogLineSkip + 2)
 	Logln(LogCondition(config.NetLogLevel&NetLogURL != 0), callerLevel, lineLevel, config.Method, config.URL)
 	Logln(LogCondition(config.NetLogLevel&NetLogParams != 0), callerLevel, lineLevel, config.Params)
 

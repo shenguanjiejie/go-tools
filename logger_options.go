@@ -25,21 +25,21 @@ func LogCondition(condition bool) LogOptionFunc {
 	}
 }
 
-// LogCallerSkip 输出的方法名的层级, 默认为0, 代表输出当前方法名, 如果要输出上层方法名(比如闭包内打印), 则该参数设置为CallerLevel(1)即可, 以此类推.
+// LogCallerSkip 输出的方法名的层级, 默认为0, 代表输出当前方法名, 如果要输出上层方法名(比如闭包内打印), 则该参数设置为LogCallerSkip(1)即可, 以此类推.
 func LogCallerSkip(callerSkip int) LogOptionFunc {
 	return func(o *logOptions) {
 		o.LogCallerSkip = callerSkip
 	}
 }
 
-// LogLineSkip 输出的行号的层级, 默认为0, 代表输出当前所在代码块的行号, 如果要输出上层代码块的行号(比如闭包内打印), 则该参数设置为LineLevel(1)即可, 以此类推.
+// LogLineSkip 输出的行号的层级, 默认为0, 代表输出当前所在代码块的行号, 如果要输出上层代码块的行号(比如闭包内打印), 则该参数设置为LogLineSkip(1)即可, 以此类推.
 func LogLineSkip(lineSkip int) LogOptionFunc {
 	return func(o *logOptions) {
 		o.LogLineSkip = lineSkip
 	}
 }
 
-// LogLineSkip 输出的行号的层级, 默认为0, 代表输出当前所在代码块的行号, 如果要输出上层代码块的行号(比如闭包内打印), 则该参数设置为LineLevel(1)即可, 以此类推.
+// LogLineSkip 输出的行号的层级, 默认为0, 代表输出当前所在代码块的行号, 如果要输出上层代码块的行号(比如闭包内打印), 则该参数设置为logLevel(1)即可, 以此类推.
 func logLevel(level string) LogOptionFunc {
 	return func(o *logOptions) {
 		o.logLevel = level

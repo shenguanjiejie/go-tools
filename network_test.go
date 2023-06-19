@@ -22,10 +22,10 @@ type User struct {
 func TestHttpGet(t *testing.T) {
 	user := new(User)
 	Get("https://jsonplaceholder.typicode.com/posts/1", nil, nil, NetLogLevelOption(NetLogNone))
-	Get("https://jsonplaceholder.typicode.com/posts/1", nil, nil, NetLogLevelOption(NetLogURL), LogCallerSkipOption(-2), LogLineSkipOption(-2))
-	Get("https://jsonplaceholder.typicode.com/posts/1", nil, nil, NetLogLevelOption(NetLogURL|NetLogParams))
-	Get("https://jsonplaceholder.typicode.com/posts/1", nil, nil, NetLogLevelOption(NetLogAll))
-	Get("https://jsonplaceholder.typicode.com/posts/1", nil, user)
+	Get("https://jsonplaceholder.typicode.com/posts/2", nil, nil, NetLogLevelOption(NetLogURL), LogCallerSkipOption(-2), LogLineSkipOption(-2))
+	Get("https://jsonplaceholder.typicode.com/posts/3", nil, nil, NetLogLevelOption(NetLogURL|NetLogParams))
+	Get("https://jsonplaceholder.typicode.com/posts/4", nil, nil, NetLogLevelOption(NetLogAll))
+	Get("https://jsonplaceholder.typicode.com/posts/5", nil, user)
 }
 
 func TestHttpPost(t *testing.T) {
